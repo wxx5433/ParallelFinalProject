@@ -1,10 +1,21 @@
 #Resources
+
+### Betweenness Centrality
+1. [Scalable and High Performance Betweenness Centrality on the GPU](http://users.ece.gatech.edu/~amclaughlin7/SC14_Final.pdf)
+2. [Edge v. Node Parallelism for Graph Centrality Metrics](http://graphics.cs.illinois.edu/papers/gpubc)
+3. [Revisiting Edge and Node Parallelism for Dynamic GPU Graph Analytics](http://users.ece.gatech.edu/~amclaughlin7/MTAAP14_Final.pdf)
+4. [Betweenness Centrality on GPUs and Heterogeneous Architecture](http://bmi.osu.edu/hpc/papers/Sariyuce13-GPGPU.pdf)
+5. [Fast network centrality analysis using GPUs](http://www.biomedcentral.com/content/pdf/1471-2105-12-149.pdf)
+
+
 ### PageRank
 1. [SERC Parallel Programming Course Assignment 2 PageRank using MPI, illustration of CUDA Optimizations](http://www.serc.iisc.ernet.in/~vss/courses/PPP2015/asg2.htm)
 2. [CME 213 Introduction to parallel computing using MPI, openMP, and CUDA](http://ericdarve.github.io/)
 3. [Cuda PageRank Experiment](http://around.aliapp.com/colorfullife/programming/pagerank.html)
 4. [Cuda PageRank Sample Code](http://mapgraph.io/PageRank_8cu_source.html)
 5. [Parallel PageRank computation using GPUs](http://delivery.acm.org/10.1145/2360000/2350751/p223-duong.pdf?ip=128.237.173.210&id=2350751&acc=ACTIVE%20SERVICE&key=A792924B58C015C1%2E5A12BE0369099858%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35&CFID=502779681&CFTOKEN=12874600&__acm__=1429294369_896be187c9a0ce3406290c29d9a5be67)
+6. [GraphLab PageRank example](http://select.cs.cmu.edu/code/graphlab/doxygen/html/pagerank_example.html)
+7. [PageRank Algorithm](http://pr.efactory.de/e-pagerank-algorithm.shtml)
 
 ### Connected Components
 1. [Connected Component Labeling in CUDA](http://hpcg.purdue.edu/bbenes/papers/Stava2011CCL.pdf)
