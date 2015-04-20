@@ -3,9 +3,11 @@
 ### Betweenness Centrality
 1. [Scalable and High Performance Betweenness Centrality on the GPU](http://users.ece.gatech.edu/~amclaughlin7/SC14_Final.pdf)
 2. [Edge v. Node Parallelism for Graph Centrality Metrics](http://graphics.cs.illinois.edu/papers/gpubc)
-3. [Revisiting Edge and Node Parallelism for Dynamic GPU Graph Analytics](http://users.ece.gatech.edu/~amclaughlin7/MTAAP14_Final.pdf)
-4. [Betweenness Centrality on GPUs and Heterogeneous Architecture](http://bmi.osu.edu/hpc/papers/Sariyuce13-GPGPU.pdf)
-5. [Fast network centrality analysis using GPUs](http://www.biomedcentral.com/content/pdf/1471-2105-12-149.pdf)
+3. [Edge v. Node Parallelism for Graph Centrality Metrics paper](https://books.google.com/books?id=dNvantWW7HMC&pg=PA15&lpg=PA15&dq=Edge+v.+Node+Parallelism+for+Graph+Centrality+Metrics&source=bl&ots=9elzs20f17&sig=i1x37xMYLfljHkXWJdowsffQAgg&hl=en&sa=X&ei=zmc1VeWfEPWHsQSDtYD4Dw&ved=0CDkQ6AEwAw#v=onepage&q&f=true)
+4. [Revisiting Edge and Node Parallelism for Dynamic GPU Graph Analytics](http://users.ece.gatech.edu/~amclaughlin7/MTAAP14_Final.pdf)
+5. [Betweenness Centrality on GPUs and Heterogeneous Architecture](http://bmi.osu.edu/hpc/papers/Sariyuce13-GPGPU.pdf)
+6. [Fast network centrality analysis using GPUs](http://www.biomedcentral.com/content/pdf/1471-2105-12-149.pdf)
+7. [GPU-based Fast Analysis of Networks (GPU-FAN)](http://bioinfo.vanderbilt.edu/gpu-fan/)
 
 
 ### PageRank

@@ -1,7 +1,7 @@
 # TODO
-- [ ] Serialized version of PageRank
+- [ ] Matrix Multiplication
 
-- [ ] MPI-based PageRank (reference: [Pregel Paper](http://kowshik.github.io/JPregel/pregel_paper.pdf))
+- [ ] CuSparse
 
 - [ ] Giraph and GraphLab
 

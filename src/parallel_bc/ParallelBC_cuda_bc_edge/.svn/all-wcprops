@@ -1,0 +1,77 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/graphics/!svn/ver/1065/victorlu/ParallelBC/ParallelBC_cuda_bc_edge
+END
+constant.h
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/constant.h
+END
+all-run-1.sh
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/all-run-1.sh
+END
+c-all-run.sh
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/c-all-run.sh
+END
+BC_gpu.cu
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/BC_gpu.cu
+END
+cuBCStruct.h
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/cuBCStruct.h
+END
+g-all-run.sh
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/g-all-run.sh
+END
+graph_indexed.h
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/graph_indexed.h
+END
+main.cu
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/main.cu
+END
+BC_cpu.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/BC_cpu.cpp
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/Makefile
+END
+run.sh
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/run.sh
+END
+timing.cu
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/graphics/!svn/ver/1064/victorlu/ParallelBC/ParallelBC_cuda_bc_edge/timing.cu
+END

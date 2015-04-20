@@ -1,0 +1,22 @@
+CUDA_INSTALL_PATH = /usr/local/cuda
+NVCC = $(CUDA_INSTALL_PATH)/bin/nvcc
+NVCCFLAGS = --ptxas-options="-v" -arch sm_11
+INCLUDES  = -I. -I../../common/inc -I/usr/local/cuda/include
+LIBRARY   = ../../lib/libcutil.a
+HEADER_FILES = graph_indexed.h cuBCStruct.h
+SOURCE_FILES = BC_cpu.cpp
+OBJECT_FILES = BC_cpu.o
+
+all: main $(OBJECT_FILES)
+
+main: main.cu $(HEADER_FILES) $(SOURCE_FILES) $(OBJECT_FILES)
+	nvcc $(NVCCFLAGS) $(INCLUDES) $(LIBRARY) -o main main.cu $(OBJECT_FILES)
+
+#BC_cpu.o : BC_cpu.cpp
+#	nvcc -g $(NVCCFLAGS) -c BC_cpu.cpp -o BC_cpu.o $(INCLUDES)
+
+%.o : %.cpp 
+	nvcc -g $(NVCCFLAGS) -c $< $(INCLUDES)
+
+clean:
+	rm -f *.o main main.linkinfo
