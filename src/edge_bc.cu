@@ -5,10 +5,9 @@
 #include <cmath>
 #include <algorithm>
 #include <list>
-#include "common.h"
-#include "cuda_common.h"
 #include "CycleTimer.h"
-
+#include <cuda.h>
+#include "utils.h"
 #define THRESHOLD 256
 
 using namespace std;
@@ -77,18 +76,18 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
     float *d_delta, *d_bc;
     bool h_done, *done;
     
-    checkCudaErros(cudaMalloc((void**)&d_v, sizeof(int) * num_edges));
-    checkCudaErros(cudaMalloc((void**)&d_e, sizeof(int) * num_edges));
-    checkCudaErros(cudaMemcpy(d_v, v, sizeof(int)*e_count, cudaMemcpyHostToDevice));
-    checkCudaErros(cudaMemcpy(d_e, e, sizeof(int)*e_count, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMalloc((void**)&d_v, sizeof(int) * num_edges));
+    checkCudaErrors(cudaMalloc((void**)&d_e, sizeof(int) * num_edges));
+    checkCudaErrors(cudaMemcpy(d_v, v, sizeof(int) * num_edges, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(d_e, e, sizeof(int) * num_edges, cudaMemcpyHostToDevice));
     
-    checkCudaErros(cudaMalloc((void**)&d_d, sizeof(int) * num_nodes));
-    checkCudaErros(cudaMalloc((void**)&d_sigma, sizeof(int) * num_nodes));
-    checkCudaErros(cudaMalloc((void**)&d_delta, sizeof(float) * num_nodes));
-    checkCudaErros(cudaMalloc((void**)&d_dist, sizeof(int)));
-    checkCudaErros(cudaMalloc((void**)&d_bc, sizeof(float) * num_nodes));
-    checkCudaErros(cudaMemset(d_bc, 0,  sizeof(int) * num_nodes));
-    checkCudaErros(cudaMalloc((void **)&done, sizeof(bool)));
+    checkCudaErrors(cudaMalloc((void**)&d_d, sizeof(int) * num_nodes));
+    checkCudaErrors(cudaMalloc((void**)&d_sigma, sizeof(int) * num_nodes));
+    checkCudaErrors(cudaMalloc((void**)&d_delta, sizeof(float) * num_nodes));
+    checkCudaErrors(cudaMalloc((void**)&d_dist, sizeof(int)));
+    checkCudaErrors(cudaMalloc((void**)&d_bc, sizeof(float) * num_nodes));
+    checkCudaErrors(cudaMemset(d_bc, 0,  sizeof(int) * num_nodes));
+    checkCudaErrors(cudaMalloc((void **)&done, sizeof(bool)));
     
     int threads_per_block = num_edges;
     int blocks = 1;
@@ -116,11 +115,11 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
 
     for (int i = 0; i < min(nb, num_nodes); ++i) {
         h_dist = 0;
-        init_edge<<num_blocks, threadsPerBlock>>>(i, d_d, d_sigma, num_nodes, d_dist);
+        init_edge<<<num_blocks, threadsPerBlock>>>(i, d_d, d_sigma, num_nodes, d_dist);
         // forward propagation
         do {
-            checkCudaErrors(cudaMemSet(done, 1, sizeof(bool)));
-            forward_edge <<<num_blocks, threadsPerBlock>>>(d_v, d_e, d_d, d_sigma, d_continue, d_dist, e_count);
+            checkCudaErrors(cudaMemset(done, 1, sizeof(bool)));
+            forward_edge <<<num_blocks, threadsPerBlock>>>(d_v, d_e, d_d, d_sigma, done, d_dist, num_edges);
             set_edge<<<1, 1>>>(d_dist, ++h_dist);
             checkCudaErrors(cudaMemcpy(&h_done, done, sizeof(bool), cudaMemcpyDeviceToHost));
         } while (!done);
@@ -135,7 +134,7 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
         backsum_edge <<<num_blocks2, threadsPerBlock2>>>(i, d_d,  d_delta, d_bc, num_nodes);
         cudaThreadSynchronize();
     }
-    checkCudaErrors(cudaMemcpy(h_bc, d_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(bc, d_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost));
     cudaFree(d_v); 
     cudaFree(d_e);
     cudaFree(d_d);
@@ -144,5 +143,6 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
     cudaFree(d_dist);
     cudaFree(d_bc);
     cudaFree(done);
+    return 0;
 }
 
