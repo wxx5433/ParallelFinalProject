@@ -1,20 +1,22 @@
 #ifndef SEQUENTIAL_BC_H
 #define SEQUENTIAL_BC_H
 
-struct graph;
+#include <queue>
+#include <stack>
+#include <vector>
+#include <map>
+#include <iostream>
+#include <omp.h>
+#include "CycleTimer.h"
+#include "graph.h"
 
-struct solution {
-    int *shortest_distance;
-    int *num_shortest_path_through;
-    double *dependency;
-    double *bc_score;
-};
+//struct graph;
 
-void init_solution(struct solution *sol, int node_num);
-void clear_solution(struct solution *sol);
-void compute_bc(graph *g, solution *sol);
-void print_solution(solution *sol, int num_nodes);
-void compute_bc_openmp(graph *g, solution *sol);
-
+std::vector<double> compute_bc(graph *g);
+//void compute_bc_openmp(graph *g);
+int forward_propagation(graph *g, int src_node, std::vector<int> &d, 
+    std::vector<long> &sigma);
+void print_solution(const std::vector<double> &bc, int num_nodes);
+std::vector<double> compute_bc_openmp(graph *g);
 
 #endif  /* SEQUENTIAL_BC_H */

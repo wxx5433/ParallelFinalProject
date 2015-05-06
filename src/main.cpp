@@ -59,9 +59,11 @@ int main(int argc, char** argv) {
     printf("  Edges: %d\n", g.num_edges);
     printf("  Nodes: %d\n", g.num_nodes);
 
-    solution sol1;
-    compute_bc(&g, &sol1);
-    print_solution(&sol1, g.num_nodes);
+    std::vector<double> bc_cpu_sequential = compute_bc(&g);
+    //print_solution(bc_cpu_sequential, g.num_nodes);
+    
+    std::vector<double> bc_cpu_openmp = compute_bc_openmp(&g);
+    //print_solution(bc_cpu_openmp, g.num_nodes);
 
     //solution sol2;
     //compute_bc_openmp(&g, &sol2);
