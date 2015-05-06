@@ -1,9 +1,54 @@
-default:
-	g++ -fopenmp -g -O2 -o cpu_bc main.cpp graph.cpp cpu_bc.cpp
-	#g++ -fopenmp -g -O0 -o cpu_bc main.cpp graph.cpp cpu_bc.cpp
+EXECUTABLE := betweenness_centrality
 
-run: ./cpu_bc
-	#LD_LIBRARY_PATH=./lib/:$(LD_LIBRARY_PATH) ./bfs ${GRAPH} $(N_THREADS)
+CU_FILES   := gpu_bc_node.cu
+
+CC_FILES   := main.cpp graph.cpp graph_virtual.cpp cpu_bc.cpp 
+
+LOGS	   := logs
+
+ARCH=$(shell uname | sed -e 's/-.*//g')
+OBJDIR=objs
+CXX=g++ -m64
+CXXFLAGS=-O3 -Wall -g -fopenmp
+
+LIBS       :=
+FRAMEWORKS := 
+
+ifeq ($(ARCH), Darwin)
+# Building on mac
+NVCCFLAGS=-O3 -m64 -arch compute_10
+FRAMEWORKS += OpenGL GLUT
+LDFLAGS=-L/usr/local/cuda-7.0/lib/ -lcudart
+else
+# Building on Linux
+NVCCFLAGS=-O3 -m64 -arch compute_20 
+LIBS += cudart
+LDFLAGS=-L/usr/local/cuda-7.0/lib64/ -lcudart
+endif
+
+LDLIBS  := $(addprefix -l, $(LIBS))
+LDFRAMEWORKS := $(addprefix -framework , $(FRAMEWORKS))
+
+NVCC=nvcc
+
+OBJS=$(OBJDIR)/main.o $(OBJDIR)/graph.o $(OBJDIR)/graph_virtual.o $(OBJDIR)/cpu_bc.o \
+     $(OBJDIR)/gpu_bc_node.o 
+
+.PHONY: dirs clean
+
+default: $(EXECUTABLE)
+
+dirs:
+		mkdir -p $(OBJDIR)/
 
 clean:
-	rm -rf bfs *.o *~ *.*~
+		rm -rf $(OBJDIR) *~ $(EXECUTABLE) $(LOGS)
+
+$(EXECUTABLE): dirs $(OBJS)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS) $(LDFRAMEWORKS)
+
+$(OBJDIR)/%.o: %.cpp
+		$(CXX) $< $(CXXFLAGS) -c -o $@
+
+$(OBJDIR)/%.o: %.cu
+		$(NVCC) $< $(NVCCFLAGS) -c -o $@

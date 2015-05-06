@@ -4,7 +4,7 @@
 #define DEBUG
 
 int forward_propagation(graph *g, int src_node, std::vector<int> &d, 
-    std::vector<long> &sigma) {
+    std::vector<int> &sigma) {
   std::queue<int> queue;
   int distance = 0;
 
@@ -39,10 +39,10 @@ int forward_propagation(graph *g, int src_node, std::vector<int> &d,
 }
 
 void backward_propagation(graph *g, int src_node, int distance,
-    const std::vector<int> &d, const std::vector<long> &sigma, 
-    std::vector<double> &bc) {
+    const std::vector<int> &d, const std::vector<int> &sigma, 
+    std::vector<float> &bc) {
   int num_nodes = g->num_nodes;
-  std::vector<double> delta(g->num_nodes, 0);
+  std::vector<float> delta(g->num_nodes, 0);
 
   while (distance > 1) {
     --distance;
@@ -57,7 +57,7 @@ void backward_propagation(graph *g, int src_node, int distance,
           int dst_node = g->outgoing_edges[neighbor];
           if (d[dst_node] == distance + 1) {
             delta[cur_node] += 
-              ((double)sigma[cur_node] / sigma[dst_node]) * (delta[dst_node] + 1);
+              ((float)sigma[cur_node] / sigma[dst_node]) * (delta[dst_node] + 1);
           }
         }
         if (cur_node != src_node) {
@@ -68,14 +68,14 @@ void backward_propagation(graph *g, int src_node, int distance,
   }
 }
 
-std::vector<double> compute_bc(graph *g) {
+std::vector<float> compute_bc(graph *g) {
   // initialize solution structure
   //malloc_solution(sol, g->num_nodes);
   int num_nodes = g->num_nodes;
-  std::vector<double> bc(num_nodes, 0);
+  std::vector<float> bc(num_nodes, 0);
 
 #ifdef DEBUG
-  double start_time = CycleTimer::currentSeconds();
+  float start_time = CycleTimer::currentSeconds();
 #endif
   // loop through all nodes to compute BC score
   for (int src_node = 0; src_node < g->num_nodes; ++src_node) {
@@ -85,12 +85,15 @@ std::vector<double> compute_bc(graph *g) {
     //}
 //#endif
     std::vector<int> d(num_nodes, NOT_VISITED_MARKER);
-    std::vector<long> sigma(num_nodes, 0);
+    std::vector<int> sigma(num_nodes, 0);
     int distance = forward_propagation(g, src_node, d, sigma);
+#ifdef DEBUG
+    std::cout << "node_id: " << src_node << ", distance: " << distance << std::endl;
+#endif
     backward_propagation(g, src_node, distance, d, sigma, bc);
   }
 #ifdef DEBUG
-  double total_time = CycleTimer::currentSeconds() - start_time;
+  float total_time = CycleTimer::currentSeconds() - start_time;
   std::cout << "\ttotal time for cpu_sequential: " << total_time << std::endl;
 #endif
 
@@ -98,10 +101,10 @@ std::vector<double> compute_bc(graph *g) {
 }
 
 void backward_propagation_openmp(graph *g, int src_node, int distance,
-    const std::vector<int> &d, const std::vector<long> &sigma, 
-    std::vector<double> &bc) {
+    const std::vector<int> &d, const std::vector<int> &sigma, 
+    std::vector<float> &bc) {
   int num_nodes = g->num_nodes;
-  std::vector<double> delta(g->num_nodes, 0);
+  std::vector<float> delta(g->num_nodes, 0);
 
   while (distance > 1) {
     --distance;
@@ -116,7 +119,7 @@ void backward_propagation_openmp(graph *g, int src_node, int distance,
           int dst_node = g->outgoing_edges[neighbor];
           if (d[dst_node] == distance + 1) {
             delta[cur_node] += 
-              ((double)sigma[cur_node] / sigma[dst_node]) * (delta[dst_node] + 1);
+              ((float)sigma[cur_node] / sigma[dst_node]) * (delta[dst_node] + 1);
           }
         }
         if (cur_node != src_node) {
@@ -128,30 +131,30 @@ void backward_propagation_openmp(graph *g, int src_node, int distance,
   }
 }
 
-std::vector<double> compute_bc_openmp(graph *g) {
+std::vector<float> compute_bc_openmp(graph *g) {
   int num_nodes = g->num_nodes;
-  std::vector<double> bc(num_nodes, 0);
+  std::vector<float> bc(num_nodes, 0);
 
 #ifdef DEBUG
-  double start_time = CycleTimer::currentSeconds();
+  float start_time = CycleTimer::currentSeconds();
 #endif
   // loop through all nodes to compute BC score
   #pragma omp parallel for schedule(dynamic)
   for (int src_node = 0; src_node < g->num_nodes; ++src_node) {
     std::vector<int> d(num_nodes, NOT_VISITED_MARKER);
-    std::vector<long> sigma(num_nodes, 0);
+    std::vector<int> sigma(num_nodes, 0);
     int distance = forward_propagation(g, src_node, d, sigma);
     backward_propagation_openmp(g, src_node, distance, d, sigma, bc);
   }
 #ifdef DEBUG
-  double total_time = CycleTimer::currentSeconds() - start_time;
+  float total_time = CycleTimer::currentSeconds() - start_time;
   std::cout << "\ttotal time for cpu_openmp: " << total_time << std::endl;
 #endif
 
   return bc;
 }
 
-void print_solution(const std::vector<double> &bc, int num_nodes) {
+void print_solution(const float *bc, int num_nodes) {
   for (int i = 0; i < num_nodes; ++i) {
     std::cout << "node id: " << i + 1 << ", bc_score: " << bc[i] << std::endl;
   }

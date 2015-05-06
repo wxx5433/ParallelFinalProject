@@ -9,14 +9,16 @@
 
 #include "CycleTimer.h"
 #include "graph.h"
+#include "graph_virtual.h"
 #include "cpu_bc.h"
+#include "gpu_bc_node.h"
 //#include "bfs.h"
 
-#define USE_BINARY_GRAPH 1
+#define USE_BINARY_GRAPH 0
 
 int main(int argc, char** argv) {
 
-    int  num_threads = -1;
+    //int  num_threads = -1;
     std::string graph_filename;
 
     if (argc < 2)
@@ -46,24 +48,39 @@ int main(int argc, char** argv) {
     printf("----------------------------------------------------------\n");
 
     printf("Loading graph...\n");
-    if (USE_BINARY_GRAPH) {
-        load_graph_binary(graph_filename.c_str(), &g);
-    } else {
+    //if (USE_BINARY_GRAPH) {
+        //load_graph_binary(graph_filename.c_str(), &g);
+    //} else {
         load_graph(argv[1], &g);
-        printf("storing binary form of graph!\n");
-        store_graph_binary(graph_filename.append(".bin").c_str(), &g);
-        exit(1);
-    }
+        //printf("storing binary form of graph!\n");
+        //store_graph_binary(graph_filename.append(".bin").c_str(), &g);
+        //exit(1);
+    //}
     printf("\n");
     printf("Graph stats:\n");
     printf("  Edges: %d\n", g.num_edges);
     printf("  Nodes: %d\n", g.num_nodes);
 
-    std::vector<double> bc_cpu_sequential = compute_bc(&g);
-    //print_solution(bc_cpu_sequential, g.num_nodes);
-    
-    std::vector<double> bc_cpu_openmp = compute_bc_openmp(&g);
-    //print_solution(bc_cpu_openmp, g.num_nodes);
+    graph_virtual g_v;
+    printf("Loading graph...\n");
+    load_graph_virtual(argv[1], &g_v);
+    printf("\n");
+    printf("Graph stats:\n");
+    printf("  Edges: %d\n", g_v.num_edges);
+    printf("  Nodes: %d\n", g_v.num_nodes);
+
+
+
+    std::vector<float> bc_cpu_sequential = compute_bc(&g);
+    print_solution(&bc_cpu_sequential[0], g.num_nodes);
+     
+    std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
+    print_solution(&bc_cpu_openmp[0], g.num_nodes);
+
+    float *bc = (float*)malloc(sizeof(float) * g.num_nodes);
+    gpu_bc_node(&g, bc);
+    print_solution(bc, g.num_nodes);
+    free(bc);
 
     //solution sol2;
     //compute_bc_openmp(&g, &sol2);

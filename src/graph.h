@@ -1,6 +1,15 @@
 #ifndef __GRAPH_H__
 #define __GRAPH_H__
 
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include <vector>
+
+#define GRAPH_HEADER_TOKEN 0xDEADBEEF
+
 struct graph
 {
     int num_edges;
@@ -11,13 +20,13 @@ struct graph
     // outgoing edges, please see the top-down bfs implementation.
     int* outgoing_starts;
     int* outgoing_edges;
-
-    int* incoming_starts;
-    int* incoming_edges;
+    //int* incoming_starts;
+    //int* incoming_edges;
 };
 
 void load_graph(const char* filename, graph* graph);
 void load_graph_binary(const char* filename, graph* graph);
 void store_graph_binary(const char* filename, graph* graph);
+void read_graph_file(std::ifstream& file, int* scratch);
 
 #endif

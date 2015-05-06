@@ -6,17 +6,14 @@
 #include <vector>
 #include <map>
 #include <iostream>
-#include <omp.h>
 #include "CycleTimer.h"
 #include "graph.h"
 
-//struct graph;
 
-std::vector<double> compute_bc(graph *g);
-//void compute_bc_openmp(graph *g);
+std::vector<float> compute_bc(graph *g);
 int forward_propagation(graph *g, int src_node, std::vector<int> &d, 
-    std::vector<long> &sigma);
-void print_solution(const std::vector<double> &bc, int num_nodes);
-std::vector<double> compute_bc_openmp(graph *g);
+    std::vector<int> &sigma);
+void print_solution(const float *bc, int num_nodes);
+std::vector<float> compute_bc_openmp(graph *g);
 
 #endif  /* SEQUENTIAL_BC_H */
