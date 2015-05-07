@@ -17,8 +17,8 @@ def main():
     for line in sys.stdin:
         if flag == True:
             fields = line.strip().split(" ")
-            tgt = int(fields[0])
-            src = int(fields[1])
+            tgt = int(fields[1]) # modified here for different graph
+            src = int(fields[0]) # modified here for different graph
             if prev_src == -1:
                 prev_src = src
                 tgt_list.append(tgt)
