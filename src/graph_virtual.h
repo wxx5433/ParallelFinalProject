@@ -18,6 +18,8 @@ struct graph_virtual
   int num_virtual_nodes;
 
   int *vmap;
+  int *offset;
+  int *nvir;
   int *outgoing_starts;
   int *outgoing_edges;
 };

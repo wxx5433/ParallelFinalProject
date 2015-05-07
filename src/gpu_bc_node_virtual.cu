@@ -12,13 +12,18 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "CycleTimer.h"
+
+#define THREAD_NUM 256
+#define DEBUG
+
 using namespace std;
 
 int *d_vmap, *d_vptrs, *d_vjs, *d_d, *d_sigma, *d_dist, h_dist;
 float *d_delta, *d_bc;
 int* d_weight;
 bool *d_continue;
-dim3 grid, threads, grid2, threads2;
+/*dim3 grid, threads, grid2, threads2;*/
 
 //for deg1 coalesced
 int *d_xadj;
@@ -46,46 +51,47 @@ __global__ void forward_virtual (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d
   }
 }
 
-/*__global__ void forward_virtual_coalesced (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d, int *d_sigma, bool *d_continue, int *d_dist, int virn_count, int *d_stride, int *d_startoffset, int *d_xadj) {*/
-  /*int vu = blockIdx.x * blockDim.x * gridDim.y + blockIdx.y * blockDim.x + threadIdx.x;*/
-  /*if(vu < virn_count) {*/
-    /*int u = d_vmap[vu];*/
-    /*[> for each edge (u, w) s.t. u is unvisited, w is in the current level <]*/
-    /*if(d_d[u] == *d_dist) {*/
+__global__ void forward_virtual_coalesced (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d, int *d_sigma, bool *d_continue, int *d_dist, int virn_count, int *d_stride, int *d_startoffset, int *d_xadj) {
+  int vu = blockIdx.x * blockDim.x * gridDim.y + blockIdx.y * blockDim.x + threadIdx.x;
+  if(vu < virn_count) {
+    int u = d_vmap[vu];
+    /* for each edge (u, w) s.t. u is unvisited, w is in the current level */
+    if(d_d[u] == *d_dist) {
       /*int end = d_xadj[u + 1];*/
-      /*int stride = d_stride[u];*/
-      /*for(int p = d_startoffset[vu]; p < end; p+=stride) {*/
-        /*int w = d_vjs[p];*/
-        /*if(d_d[w] == -1) {*/
-          /*d_d[w] = *d_dist + 1;*/
-          /**d_continue = 1;*/
-        /*}*/
-        /*if(d_d[w] == *d_dist + 1) {*/
-          /*atomicAdd(&d_sigma[w], d_sigma[u]);*/
-        /*}*/
-      /*}*/
-    /*}*/
-  /*}*/
-/*}*/
+      int end = d_xadj[vu + 1];
+      int stride = d_stride[u];  // stride ==> nvir
+      for(int p = d_startoffset[vu]; p < end; p+=stride) {
+        int w = d_vjs[p];
+        if(d_d[w] == -1) {
+          d_d[w] = *d_dist + 1;
+          *d_continue = 1;
+        }
+        if(d_d[w] == *d_dist + 1) {
+          atomicAdd(&d_sigma[w], d_sigma[u]);
+        }
+      }
+    }
+  }
+}
 
-/*__global__ void backward_virtual_coalesced (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d, float *d_delta, int *d_dist, int virn_count, int *d_stride, int *d_startoffset, int *d_xadj){*/
-  /*int vu = blockIdx.x * blockDim.x * gridDim.y + blockIdx.y * blockDim.x + threadIdx.x;*/
-  /*if(vu < virn_count) {*/
-    /*int u = d_vmap[vu];*/
-    /*if(d_d[u] == *d_dist - 1) {*/
-      /*int end = d_xadj[u + 1];*/
-      /*int stride = d_stride[u];*/
-      /*float sum = 0;*/
-      /*for(int p = d_startoffset[vu]; p < end; p+=stride) {*/
-        /*int w = d_vjs[p];*/
-        /*if(d_d[w] == *d_dist ) {*/
-          /*sum += d_delta[w];*/
-        /*}*/
-      /*}*/
-      /*atomicAdd(&d_delta[u], sum);*/
-    /*}*/
-  /*}*/
-/*}*/
+__global__ void backward_virtual_coalesced (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d, float *d_delta, int *d_dist, int virn_count, int *d_stride, int *d_startoffset, int *d_xadj){
+  int vu = blockIdx.x * blockDim.x * gridDim.y + blockIdx.y * blockDim.x + threadIdx.x;
+  if(vu < virn_count) {
+    int u = d_vmap[vu];
+    if(d_d[u] == *d_dist - 1) {
+      int end = d_xadj[u + 1];
+      int stride = d_stride[u];
+      float sum = 0;
+      for(int p = d_startoffset[vu]; p < end; p+=stride) {
+        int w = d_vjs[p];
+        if(d_d[w] == *d_dist ) {
+          sum += d_delta[w];
+        }
+      }
+      atomicAdd(&d_delta[u], sum);
+    }
+  }
+}
 
 __global__ void backward_virtual (int* d_vmap, int* d_vptrs, int* d_vjs, int *d_d, float *d_delta, int *d_dist, int virn_count){
   int vu = blockIdx.x * blockDim.x * gridDim.y + blockIdx.y * blockDim.x + threadIdx.x;
@@ -155,6 +161,9 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
   float *d_delta, *d_bc;
   bool h_continue, *d_continue;
 
+#ifdef DEBUG
+  float start_time = CycleTimer::currentSeconds();
+#endif
   assert (cudaSuccess == cudaMalloc((void **)&d_vmap, sizeof(int) *  virn_count));
   assert (cudaSuccess == cudaMalloc((void **)&d_vptrs, sizeof(int) * (virn_count + 1)));
   assert (cudaSuccess == cudaMalloc((void **)&d_vjs, sizeof(int) * e_count));
@@ -174,46 +183,31 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
 
   assert (cudaSuccess == cudaMalloc((void **)&d_continue, sizeof(bool)));
 
-  /*int threads_per_block = virn_count;*/
-  /*int blocks = 1;*/
-  /*if(virn_count > MTS){*/
-    /*blocks = (int)ceil(virn_count/(double)MTS);*/
-    /*blocks = (int)ceil(sqrt((float)blocks));*/
-    /*threads_per_block = MTS;*/
-  /*}*/
-  /*dim3 grid;*/
-  /*grid.x = blocks;*/
-  /*grid.y = blocks;*/
-  /*dim3 threads(threads_per_block);*/
-  dim3 blockDim_virtual(256);
+  dim3 blockDim_virtual(THREAD_NUM);
   dim3 gridDim_virtual((virn_count + blockDim_virtual.x - 1) / blockDim_virtual.x);
 
-  /*int threads_per_block2 = n_count;*/
-  /*int blocks2 = 1;*/
-  /*if(n_count > MTS){*/
-    /*blocks2 = (int)ceil(n_count/(double)MTS);*/
-    /*blocks2 = (int)ceil(sqrt((float)blocks2));*/
-    /*threads_per_block2 = MTS;*/
-  /*}*/
-  /*dim3 grid2;*/
-  /*grid2.x = blocks2;*/
-  /*grid2.y = blocks2;*/
-  /*dim3 threads2(threads_per_block2);*/
-  dim3 blockDim(256);
+  dim3 blockDim(THREAD_NUM);
   dim3 gridDim((n_count + blockDim.x - 1) / blockDim.x);
 
   for(int i = 0; i < n_count; i++){
     h_dist = 0;
     init_virtual<<<gridDim,blockDim>>>(i, d_d, d_sigma, n_count, d_dist);
-    cudaThreadSynchronize();
-
-    /*CudaCheckError();*/
+    cudaDeviceSynchronize();
 
     do{
 
       assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
       forward_virtual<<<gridDim_virtual,blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count);
-      cudaThreadSynchronize();
+      cudaDeviceSynchronize();
+#ifdef DEBUG
+    int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);
+    cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);
+    cout << "distance: " << h_dist << endl;
+    for (int i = 0; i < n_count; ++i) {
+      cout << "\t" << tmp_sigma[i];
+    }
+    cout << endl;
+#endif
       set_int<<<1,1>>>(d_dist, ++h_dist);
       assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
 
@@ -221,14 +215,14 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
 
     set_int<<<1,1>>>(d_dist, --h_dist);
     intermediate_virtual<<<gridDim, blockDim>>>(d_d, d_sigma, d_delta, d_dist, n_count);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     while(h_dist > 1) {
       backward_virtual<<<gridDim_virtual, blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count);
-      cudaThreadSynchronize();
+      cudaDeviceSynchronize();
       set_int<<<1,1>>>(d_dist, --h_dist);
     }
     backsum_virtual<<<gridDim, blockDim>>>(i, d_d,  d_delta, d_sigma, d_bc, n_count);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 
   }
 
@@ -242,149 +236,112 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
   cudaFree(d_dist);
   cudaFree(d_bc);
   cudaFree(d_continue);
+#ifdef DEBUG
+  float total_time = CycleTimer::currentSeconds() - start_time;
+  std::cout << "\ttotal time for gpu_bc_node_virtual: " << total_time << std::endl;
+#endif
   return 0;
 }
 
-/*int bc_virtual_coalesced (int* h_vmap, int* h_vptrs, int* h_xadj, int* h_vjs, int n_count, int* h_startoffset, int* h_stride, int e_count, int virn_count, int nb, float *h_bc) {*/
-  /*int *d_vmap, *d_vptrs, *d_vjs, *d_d, *d_sigma, *d_dist, h_dist;*/
-  /*float *d_delta, *d_bc;*/
-  /*bool h_continue, *d_continue;*/
+// TODO remove h_xadj
+int bc_virtual_coalesced (int* h_vmap, int* h_vptrs, int* h_xadj, int* h_vjs, int n_count, int* h_startoffset, int* h_stride, int e_count, int virn_count, float *h_bc) {
+  int *d_vmap, *d_vptrs, *d_vjs, *d_d, *d_sigma, *d_dist, h_dist;
+  float *d_delta, *d_bc;
+  bool h_continue, *d_continue;
 
-  /*int *d_xadj;*/
-  /*int *d_startoffset;*/
-  /*int *d_stride;*/
+  int *d_xadj;
+  int *d_startoffset;
+  int *d_stride;
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_vmap, sizeof(int) *  virn_count));*/
-  /*assert (cudaSuccess == cudaMemcpy(d_vmap, h_vmap, sizeof(int) * virn_count, cudaMemcpyHostToDevice));*/
+#ifdef DEBUG
+  float start_time = CycleTimer::currentSeconds();
+#endif
+  assert (cudaSuccess == cudaMalloc((void **)&d_vmap, sizeof(int) *  virn_count));
+  assert (cudaSuccess == cudaMemcpy(d_vmap, h_vmap, sizeof(int) * virn_count, cudaMemcpyHostToDevice));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_vjs, sizeof(int) * e_count));*/
-  /*assert (cudaSuccess == cudaMemcpy(d_vjs, h_vjs, sizeof(int) * e_count, cudaMemcpyHostToDevice));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_vjs, sizeof(int) * e_count));
+  assert (cudaSuccess == cudaMemcpy(d_vjs, h_vjs, sizeof(int) * e_count, cudaMemcpyHostToDevice));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_xadj, sizeof(int) * (n_count + 1)));*/
-  /*assert (cudaSuccess == cudaMemcpy(d_xadj, h_xadj, sizeof(int) * (n_count + 1), cudaMemcpyHostToDevice));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_xadj, sizeof(int) * (n_count + 1)));
+  assert (cudaSuccess == cudaMemcpy(d_xadj, h_xadj, sizeof(int) * (n_count + 1), cudaMemcpyHostToDevice));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_startoffset, sizeof(int) * (virn_count)));*/
-  /*assert (cudaSuccess == cudaMemcpy(d_startoffset, h_startoffset, sizeof(int) * (virn_count), cudaMemcpyHostToDevice));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_startoffset, sizeof(int) * (virn_count)));
+  assert (cudaSuccess == cudaMemcpy(d_startoffset, h_startoffset, sizeof(int) * (virn_count), cudaMemcpyHostToDevice));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_stride, sizeof(int) * (n_count)));*/
-  /*assert (cudaSuccess == cudaMemcpy(d_stride, h_stride, sizeof(int) * (n_count), cudaMemcpyHostToDevice));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_stride, sizeof(int) * (n_count)));
+  assert (cudaSuccess == cudaMemcpy(d_stride, h_stride, sizeof(int) * (n_count), cudaMemcpyHostToDevice));
 
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_d, sizeof(int)*n_count));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_d, sizeof(int)*n_count));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_sigma, sizeof(int)*n_count));*/
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_delta, sizeof(float)*n_count));*/
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_dist, sizeof(int)));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_sigma, sizeof(int)*n_count));
+  assert (cudaSuccess == cudaMalloc((void **)&d_delta, sizeof(float)*n_count));
+  assert (cudaSuccess == cudaMalloc((void **)&d_dist, sizeof(int)));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_bc, sizeof(float)*n_count));*/
-  /*assert (cudaSuccess == cudaMemset(d_bc, 0, sizeof(float)*n_count));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_bc, sizeof(float)*n_count));
+  assert (cudaSuccess == cudaMemset(d_bc, 0, sizeof(float)*n_count));
 
-  /*assert (cudaSuccess == cudaMalloc((void **)&d_continue, sizeof(bool)));*/
+  assert (cudaSuccess == cudaMalloc((void **)&d_continue, sizeof(bool)));
 
-  /*int threads_per_block = virn_count;*/
-  /*int blocks = 1;*/
-  /*if(virn_count > MTS){*/
-    /*blocks = (int)ceil(virn_count/(double)MTS);*/
-    /*blocks = (int)ceil(sqrt((float)blocks));*/
-    /*threads_per_block = MTS;*/
-  /*}*/
-  /*dim3 grid;*/
-  /*grid.x = blocks;*/
-  /*grid.y = blocks;*/
-  /*dim3 threads(threads_per_block);*/
+  dim3 blockDim_virtual(THREAD_NUM);
+  dim3 gridDim_virtual((virn_count + blockDim_virtual.x - 1) / blockDim_virtual.x);
 
-  /*int threads_per_block2 = n_count;*/
-  /*int blocks2 = 1;*/
-  /*if(n_count > MTS){*/
-    /*blocks2 = (int)ceil(n_count/(double)MTS);*/
-    /*blocks2 = (int)ceil(sqrt((float)blocks2));*/
-    /*threads_per_block2 = MTS;*/
-  /*}*/
-  /*dim3 grid2;*/
-  /*grid2.x = blocks2;*/
-  /*grid2.y = blocks2;*/
-  /*dim3 threads2(threads_per_block2);*/
+  dim3 blockDim(THREAD_NUM);
+  dim3 gridDim((n_count + blockDim.x - 1) / blockDim.x);
 
-  /*cout<<"cuda parameters: "<<blocks<<" "<<threads_per_block<<" "<<blocks2<<" "<<threads_per_block2<<endl;*/
+  for(int i = 0; i < n_count; i++){
+    h_dist = 0;
+    init_virtual<<<gridDim, blockDim>>>(i, d_d, d_sigma, n_count, d_dist);
+    cudaDeviceSynchronize();
+    
+    do{
+      assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
+    forward_virtual_coalesced<<<gridDim_virtual, blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count, d_stride, d_startoffset, d_xadj);
+#ifdef DEBUG
+    int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);
+    cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);
+    cout << "distance: " << h_dist << endl;
+    for (int i = 0; i < n_count; ++i) {
+      cout << "\t" << tmp_sigma[i];
+    }
+    cout << endl;
+#endif
+      cudaDeviceSynchronize();
+      set_int<<<1,1>>>(d_dist, ++h_dist);
+      assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
 
-  /*cout<<"coalesced"<<std::endl;*/
+    }while(h_continue);
 
-/*#ifdef TIMER*/
-  /*struct timeval t1, t2, gt1, gt2; double time;*/
-/*#endif*/
-  /*for(int i = 0; i < min(nb, n_count); i++){*/
-/*#ifdef TIMER*/
-    /*gettimeofday(&t1, 0);*/
-/*#endif*/
+    set_int<<<1,1>>>(d_dist, --h_dist);
+    intermediate_virtual<<<gridDim, blockDim>>>(d_d, d_sigma, d_delta, d_dist, n_count);
+    cudaDeviceSynchronize();
+    while(h_dist > 1) {
+      backward_virtual_coalesced<<<gridDim_virtual, blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count, d_stride, d_startoffset, d_xadj);
+      cudaDeviceSynchronize();
+      set_int<<<1,1>>>(d_dist, --h_dist);
+    }
+    backsum_virtual<<<gridDim, blockDim>>>(i, d_d,  d_delta, d_sigma, d_bc, n_count);
+    cudaDeviceSynchronize();
 
-    /*h_dist = 0;*/
-    /*init_virtual<<<grid,threads>>>(i, d_d, d_sigma, n_count, d_dist);*/
-    /*cudaThreadSynchronize();*/
+  }
 
-/*#ifdef TIMER*/
-    /*gettimeofday(&t2, 0);*/
-    /*time = (1000000.0*(t2.tv_sec-t1.tv_sec) + t2.tv_usec-t1.tv_usec)/1000000.0;*/
-    /*cout << "initialization takes " << time << " secs\n";*/
-    /*gettimeofday(&gt1, 0);*/
-/*#endif*/
-    /*do{*/
-/*#ifdef TIMER*/
-      /*gettimeofday(&t1, 0);*/
-/*#endif*/
 
-      /*assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));*/
-      /*forward_virtual_coalesced<<<grid,threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count, d_stride, d_startoffset, d_xadj);*/
-      /*cudaThreadSynchronize();*/
-      /*set_int<<<1,1>>>(d_dist, ++h_dist);*/
-      /*CudaCheckError();*/
-      /*assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));*/
-
-/*#ifdef TIMER*/
-      /*gettimeofday(&t2, 0);*/
-      /*time = (1000000.0*(t2.tv_sec-t1.tv_sec) + t2.tv_usec-t1.tv_usec)/1000000.0;*/
-      /*cout << "level " <<  h_dist << " takes " << time << " secs\n";*/
-/*#endif*/
-    /*}while(h_continue);*/
-/*#ifdef TIMER*/
-    /*gettimeofday(&gt2, 0);*/
-    /*time = (1000000.0*(gt2.tv_sec-gt1.tv_sec) + gt2.tv_usec-gt1.tv_usec)/1000000.0;*/
-    /*cout << "Phase 1 takes " << time << " secs\n";*/
-    /*gettimeofday(&gt1, 0); // starts back propagation*/
-/*#endif*/
-
-    /*set_int<<<1,1>>>(d_dist, --h_dist);*/
-    /*intermediate_virtual<<<grid2, threads2>>>(d_d, d_sigma, d_delta, d_dist, n_count);*/
-    /*cudaThreadSynchronize();*/
-    /*while(h_dist > 1) {*/
-      /*backward_virtual_coalesced<<<grid, threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count, d_stride, d_startoffset, d_xadj);*/
-      /*cudaThreadSynchronize();*/
-      /*CudaCheckError();*/
-      /*set_int<<<1,1>>>(d_dist, --h_dist);*/
-    /*}*/
-    /*backsum_virtual<<<grid2, threads2>>>(i, d_d,  d_delta, d_sigma, d_bc, n_count);*/
-    /*cudaThreadSynchronize();*/
-
-/*#ifdef TIMER*/
-    /*gettimeofday(&gt2, 0);*/
-    /*time = (1000000.0*(gt2.tv_sec-gt1.tv_sec) + gt2.tv_usec-gt1.tv_usec)/1000000.0;*/
-    /*cout << "Phase 2 takes " << time << " secs\n";*/
-/*#endif*/
-  /*}*/
-
-  /*CudaCheckError();*/
-
-  /*assert (cudaSuccess == cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));*/
-  /*cudaFree(d_vmap);*/
-  /*cudaFree(d_vptrs);*/
-  /*cudaFree(d_vjs);*/
-  /*cudaFree(d_d);*/
-  /*cudaFree(d_sigma);*/
-  /*cudaFree(d_delta);*/
-  /*cudaFree(d_dist);*/
-  /*cudaFree(d_bc);*/
-  /*cudaFree(d_continue);*/
-  /*return 0;*/
-/*}*/
+  assert (cudaSuccess == cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));
+  cudaFree(d_vmap);
+  cudaFree(d_vptrs);
+  cudaFree(d_vjs);
+  cudaFree(d_d);
+  cudaFree(d_sigma);
+  cudaFree(d_delta);
+  cudaFree(d_dist);
+  cudaFree(d_bc);
+  cudaFree(d_continue);
+#ifdef DEBUG
+  float total_time = CycleTimer::currentSeconds() - start_time;
+  std::cout << "\ttotal time for gpu_bc_node_virutal_stride: " << total_time << std::endl;
+#endif
+  return 0;
+}
 
 /*int bc_virtual_deg1 (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count, int virn_count, int nb, float *h_bc, int* h_weight) {*/
   /*int *d_vmap, *d_vptrs, *d_vjs, *d_d, *d_sigma, *d_dist, h_dist;*/
@@ -463,7 +420,7 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
 
       /*cudaMemset(d_continue, 0, sizeof(bool));*/
       /*forward_virtual<<<grid,threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count);*/
-      /*cudaThreadSynchronize();*/
+      /*cudaDeviceSynchronize();*/
       /*set_int<<<1,1>>>(d_dist, ++h_dist);*/
       /*CudaCheckError();*/
       /*assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));*/
@@ -483,16 +440,16 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
 
     /*set_int<<<1,1>>>(d_dist, --h_dist);*/
     /*intermediate_virtual_deg1<<<grid2, threads2>>>(d_d, d_sigma, d_delta, d_dist, n_count, d_weight);*/
-    /*cudaThreadSynchronize();*/
+    /*cudaDeviceSynchronize();*/
     /*while(h_dist > 1) {*/
       /*backward_virtual<<<grid, threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count);*/
-      /*cudaThreadSynchronize();*/
+      /*cudaDeviceSynchronize();*/
       /*set_int<<<1,1>>>(d_dist, --h_dist);*/
       /*CudaCheckError();*/
     /*}*/
 
     /*backsum_virtual_deg1<<<grid2, threads2>>>(i, d_d,  d_delta, d_sigma, d_bc, n_count, d_weight);*/
-    /*cudaThreadSynchronize();*/
+    /*cudaDeviceSynchronize();*/
 
 /*#ifdef TIMER*/
     /*gettimeofday(&gt2, 0);*/
@@ -514,6 +471,7 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
   /*return 0;*/
 /*}*/
 
+/*
 void lastOperations (int n_count, float* h_bc) {
   assert (cudaSuccess == cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));
   cudaFree(d_vmap);
@@ -526,7 +484,9 @@ void lastOperations (int n_count, float* h_bc) {
   cudaFree(d_bc);
   cudaFree(d_continue);
 }
+*/
 
+/*
 int createVirtualCSR(int* ptrs, int* js, int nov, int* vmap, int* virptrs, int maxload, int permuteAdj) {
   int vcount = 0, deg, nvirtual, remaining, dif;
   int* temp = (int*)malloc(sizeof(int) * ptrs[nov]);
@@ -541,7 +501,7 @@ int createVirtualCSR(int* ptrs, int* js, int nov, int* vmap, int* virptrs, int m
     nvirtual = deg / maxload;
     remaining = deg % maxload;
 
-    for(int j = 0; j < nvirtual; j++) { /* these are for full virtual vertices */
+    for(int j = 0; j < nvirtual; j++) { // these are for full virtual vertices
       vmap[vcount] = i;
       virptrs[vcount + 1] = virptrs[vcount] + maxload;
       vcount++;
@@ -559,7 +519,7 @@ int createVirtualCSR(int* ptrs, int* js, int nov, int* vmap, int* virptrs, int m
     }
   }
 
-  if(permuteAdj) { /* scatters the nonzeros to virtual vertices */
+  if(permuteAdj) { // scatters the nonzeros to virtual vertices 
     int p, start, to;
     memcpy(temp2, virptrs, sizeof(int) * (vcount+1));
     start = 0;
@@ -593,6 +553,7 @@ int createVirtualCSR(int* ptrs, int* js, int nov, int* vmap, int* virptrs, int m
   free(temp2);
   return vcount;
 }
+*/
 
 /*int createVirtualCoalescedCSR(int* ptrs, int* js, int nov, int* vmap, int* virptrs, int* startoffset, int* stride, int maxload, int permuteAdj) {*/
   /*int vcount = 0, deg, nvirtual, remaining, dif;*/
@@ -734,7 +695,7 @@ void one_source(int source, int n_count, int virn_count) {
 
     assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
     forward_virtual<<<grid,threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     CudaCheckError();
     set_int<<<1,1>>>(d_dist, ++h_dist);
     cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost);
@@ -743,16 +704,16 @@ void one_source(int source, int n_count, int virn_count) {
 
   set_int<<<1,1>>>(d_dist, --h_dist);
   intermediate_virtual_deg1<<<grid2, threads2>>>(d_d, d_sigma, d_delta, d_dist, n_count, d_weight);
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   while(h_dist > 1) {
     backward_virtual<<<grid, threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     CudaCheckError();
     set_int<<<1,1>>>(d_dist, --h_dist);
   }
 
   backsum_virtual_deg1<<<grid2, threads2>>>(source, d_d,  d_delta, d_sigma, d_bc, n_count, d_weight);
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
 }
 */
 
@@ -829,7 +790,7 @@ void one_source_coalesced(int source, int n_count, int virn_count) {
 
     assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
     forward_virtual_coalesced<<<grid,threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count, d_stride, d_startoffset, d_xadj);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     CudaCheckError();
     set_int<<<1,1>>>(d_dist, ++h_dist);
     cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost);
@@ -838,16 +799,16 @@ void one_source_coalesced(int source, int n_count, int virn_count) {
 
   set_int<<<1,1>>>(d_dist, --h_dist);
   intermediate_virtual_deg1<<<grid2, threads2>>>(d_d, d_sigma, d_delta, d_dist, n_count, d_weight);
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   while(h_dist > 1) {
     backward_virtual_coalesced<<<grid, threads>>>(d_vmap, d_vptrs, d_vjs, d_d, d_delta, d_dist, virn_count, d_stride, d_startoffset, d_xadj);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     CudaCheckError();
     set_int<<<1,1>>>(d_dist, --h_dist);
   }
 
   backsum_virtual_deg1<<<grid2, threads2>>>(source, d_d,  d_delta, d_sigma, d_bc, n_count, d_weight);
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
 }
 */
 
