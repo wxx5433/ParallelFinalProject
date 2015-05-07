@@ -8,12 +8,10 @@
 
 const int NOT_VISITED_MARKER = -1;
 
-__constant__ graph device_graph;
-
-__global__ void init_params(int *d, int *sigma, int node_id) {
+__global__ void init_params(int num_nodes, int *d, int *sigma, int node_id) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (i >= device_graph.num_nodes) {
+  if (i >= num_nodes) {
     return;
   }
 
@@ -26,29 +24,30 @@ __global__ void init_params(int *d, int *sigma, int node_id) {
   }
 }
 
-__global__ void forward_propagation_kernel(int *d, int *sigma, int *distance, bool *done) {
+__global__ void forward_propagation_kernel(int *outgoing_starts, 
+  int *outgoing_edges, int num_nodes, int num_edges, int *d, 
+  int *sigma, int *distance, bool *done) {
   int v = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (v >= device_graph.num_nodes) {
+  if (v >= num_nodes) {
     return;
   }
 
   if (d[v] == *distance) {
+    int start_edge = outgoing_starts[v];
+    int end_edge = (v == num_nodes - 1)?  num_edges: outgoing_starts[v + 1];
 #ifdef DEBUG
-    printf("enter here\n");
+    printf("(start, end): (%d, %d)\n", start_edge, end_edge);
 #endif
-    int start_edge = device_graph.outgoing_starts[v];
-    int end_edge = (v == device_graph.num_nodes - 1)?
-      device_graph.num_edges: device_graph.outgoing_starts[v + 1];
     for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
-      int w = device_graph.outgoing_edges[neighbor];
+      int w = outgoing_edges[neighbor];
       
       if (d[w] == NOT_VISITED_MARKER) {
-        d[w] = *distance + 1;
-        *done = false;
 #ifdef DEBUG
         printf("set done here\n");
 #endif
+        d[w] = *distance + 1;
+        *done = false;
       }
       if (d[w] == *distance + 1) {
         atomicAdd(&sigma[w], sigma[v]);
@@ -57,23 +56,24 @@ __global__ void forward_propagation_kernel(int *d, int *sigma, int *distance, bo
   }
 }
 
-__global__ void backward_propagation_kernel(int *d, int *sigma, 
-    float *delta, int *distance) {
+__global__ void backward_propagation_kernel(int *outgoing_starts,
+  int *outgoing_edges, int num_nodes, int num_edges, int *d, 
+  int *sigma, float *delta, int *distance) {
   int v = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (v >= device_graph.num_nodes) {
+  if (v >= num_nodes) {
     return;
   }
 
   if (d[v] == *distance) {
-    int start_edge = device_graph.outgoing_starts[v];
-    int end_edge = (v == device_graph.num_nodes - 1)? 
-      device_graph.num_edges: device_graph.outgoing_starts[v + 1];
+    int start_edge = outgoing_starts[v];
+    int end_edge = (v == num_nodes - 1)? 
+      num_edges: outgoing_starts[v + 1];
     float sum = 0;
 
     // loop through all neighbors
     for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
-      int w = device_graph.outgoing_edges[neighbor];
+      int w = outgoing_edges[neighbor];
       if (d[w] == *distance + 1) {
         sum += (float)sigma[v] / sigma[w] * (delta[w] + 1);
       }
@@ -82,9 +82,10 @@ __global__ void backward_propagation_kernel(int *d, int *sigma,
   }
 }
 
-__global__ void compute_bc_kernel(int src_node, int *d, float *delta, float *bc) {
+__global__ void compute_bc_kernel(int num_nodes, int src_node, 
+    int *d, float *delta, float *bc) {
   int v = blockIdx.x * blockDim.x + threadIdx.x;
-  if (v >= device_graph.num_nodes) {
+  if (v >= num_nodes) {
     return;
   }
 
@@ -93,19 +94,26 @@ __global__ void compute_bc_kernel(int src_node, int *d, float *delta, float *bc)
   }
 }
 
-void setup(const graph *g, int **d, int **sigma, int **distance,
+void setup(const graph *g, int **outgoing_starts, int **outgoing_edges, 
+    int **d, int **sigma, int **distance,
     float **delta, float **bc, bool **done) {
-  cudaMemcpyToSymbol(device_graph, g, sizeof(graph));
+  int num_nodes = g->num_nodes;
+  int num_edges = g->num_edges;
+
+  cudaMalloc((void**)outgoing_starts, sizeof(int) * num_nodes);
+  cudaMalloc((void**)outgoing_edges, sizeof(int) * num_edges);
+  cudaMemcpy(outgoing_starts, g->outgoing_starts, sizeof(int) * num_nodes, cudaMemcpyHostToDevice);
+  cudaMemcpy(outgoing_edges, g->outgoing_edges, sizeof(int) * num_edges, cudaMemcpyHostToDevice);
 
   // TODO try using shared memory
-  cudaMalloc((void**)d, sizeof(int) * g->num_nodes);
-  cudaMalloc((void**)sigma, sizeof(int) * g->num_nodes);
+  cudaMalloc((void**)d, sizeof(int) * num_nodes);
+  cudaMalloc((void**)sigma, sizeof(int) * num_nodes);
   cudaMalloc((void **)distance, sizeof(int));
-  cudaMalloc((void**)delta, sizeof(float) * g->num_nodes);
-  cudaMalloc((void**)bc, sizeof(float) * g->num_nodes);
+  cudaMalloc((void**)delta, sizeof(float) * num_nodes);
+  cudaMalloc((void**)bc, sizeof(float) * num_nodes);
   cudaMalloc((void**)done, sizeof(bool));
 
-  cudaMemset(bc, 0, sizeof(float) * g->num_nodes);
+  cudaMemset(bc, 0, sizeof(float) * num_nodes);
 }
 
 void clean(int **d, int **sigma, int **distance, float **delta,
@@ -120,27 +128,28 @@ void clean(int **d, int **sigma, int **distance, float **delta,
 
 int gpu_bc_node (const graph *g, float *bc) {
   int *device_d, *device_sigma, *device_distance;
+  int *device_outgoing_starts, *device_outgoing_edges;
   float *device_delta, *device_bc;
   bool *device_done;
+  bool done;
 
 #ifdef DEBUG
   double start_time = CycleTimer::currentSeconds();
 #endif
-  setup(g, &device_d, &device_sigma, &device_distance, 
-      &device_delta, &device_bc, &device_done);
+  setup(g, &device_outgoing_starts, &device_outgoing_edges, &device_d, 
+      &device_sigma, &device_distance, &device_delta, &device_bc, &device_done);
 
   dim3 blockDim(256);
   dim3 gridDim((g->num_nodes + blockDim.x - 1) / blockDim.x);
 
   for (int node_id = 0; node_id < g->num_nodes; ++node_id) {
     int distance = -1;
-    bool done = false;
 
     // initialize parameters for d and sigma
-    init_params<<<gridDim, blockDim>>>(device_d, device_sigma, node_id);
+    init_params<<<gridDim, blockDim>>>(g->num_nodes, device_d, device_sigma, node_id);
     
     // forward propagation
-    while (!done) {
+    do {
       done = true;
       ++distance;
 
@@ -151,10 +160,14 @@ int gpu_bc_node (const graph *g, float *bc) {
       cudaMemset(device_done, true, sizeof(bool));
       cudaMemcpy(device_distance, &distance, sizeof(int), cudaMemcpyHostToDevice);
 
-      forward_propagation_kernel<<<gridDim, blockDim>>>(device_d, 
-          device_sigma, device_distance, device_done);
+      forward_propagation_kernel<<<gridDim, blockDim>>>(device_outgoing_starts,
+        device_outgoing_edges, g->num_nodes, g->num_edges, device_d, 
+        device_sigma, device_distance, device_done);
+      cudaGetLastError();
+      cudaDeviceSynchronize();
+
       cudaMemcpy(&done, device_done, sizeof(bool), cudaMemcpyDeviceToHost);
-    }
+    } while (!done);
 #ifdef DEBUG
     std::cout << "node_id: " << node_id << ", distance: " << distance << std::endl;
 #endif
@@ -162,16 +175,17 @@ int gpu_bc_node (const graph *g, float *bc) {
     // backward propagation
     cudaMemset(device_delta, 0, sizeof(float) * g->num_nodes);
     --distance;
-    /*distance -= 2;*/
     cudaMemcpy(device_distance, &distance, sizeof(int), cudaMemcpyHostToDevice);
     while (distance > 1) {
-      backward_propagation_kernel<<<gridDim, blockDim>>>(device_d, device_sigma, 
-        device_delta, device_distance);
+      backward_propagation_kernel<<<gridDim, blockDim>>>(device_outgoing_starts,
+          device_outgoing_edges, g->num_nodes, g->num_edges, device_d, device_sigma, 
+          device_delta, device_distance);
       --distance;
       cudaMemcpy(device_distance, &distance, sizeof(int), cudaMemcpyHostToDevice);
     }
 
-    compute_bc_kernel<<<gridDim, blockDim>>>(node_id, device_d, device_delta, device_bc);
+    compute_bc_kernel<<<gridDim, blockDim>>>(g->num_nodes, node_id, device_d, 
+        device_delta, device_bc);
   }
 
   cudaMemcpy(bc, device_bc, sizeof(float) * g->num_nodes, cudaMemcpyDeviceToHost);

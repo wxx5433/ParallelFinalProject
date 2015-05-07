@@ -28,5 +28,6 @@ void load_graph(const char* filename, graph* graph);
 void load_graph_binary(const char* filename, graph* graph);
 void store_graph_binary(const char* filename, graph* graph);
 void read_graph_file(std::ifstream& file, int* scratch);
+void print_graph(const graph* graph);
 
 #endif
