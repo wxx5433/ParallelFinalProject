@@ -19,12 +19,14 @@ void build_start_virtual(graph_virtual *graph, int *scratch) {
   }
 
   graph->num_virtual_nodes = vmap.size();
-  graph->vmap = (int*)malloc(sizeof(int) * graph->num_virtual_nodes);
-  graph->outgoing_starts = (int*)malloc(sizeof(int) * graph->num_virtual_nodes);
+  graph->vmap = (int*)malloc(sizeof(int) * (graph->num_virtual_nodes + 1));
+  graph->outgoing_starts = (int*)malloc(sizeof(int) * (graph->num_virtual_nodes + 1));
   for (int i = 0; i < graph->num_virtual_nodes; ++i) {
     graph->vmap[i] = vmap[i];
     graph->outgoing_starts[i] = outgoing_starts[i];
   }
+  graph->outgoing_starts[graph->num_virtual_nodes] = graph->num_nodes;
+  graph->vmap[graph->num_virtual_nodes] = graph->num_nodes;
 }
 
 void build_edges_virtual(graph_virtual *graph, int *scratch) {

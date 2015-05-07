@@ -12,7 +12,7 @@
 #include "graph_virtual.h"
 #include "cpu_bc.h"
 #include "gpu_bc_node.h"
-//#include "bfs.h"
+#include "gpu_bc_node_virtual.h"
 
 #define USE_BINARY_GRAPH 0
 
@@ -64,12 +64,11 @@ int main(int argc, char** argv) {
     graph_virtual g_v;
     printf("Loading graph...\n");
     load_graph_virtual(argv[1], &g_v);
+    //print_graph_virtual(&g_v);
     printf("\n");
     printf("Graph stats:\n");
     printf("  Edges: %d\n", g_v.num_edges);
     printf("  Nodes: %d\n", g_v.num_nodes);
-
-
 
     std::vector<float> bc_cpu_sequential = compute_bc(&g);
     print_solution(&bc_cpu_sequential[0], g.num_nodes);
@@ -82,9 +81,18 @@ int main(int argc, char** argv) {
     print_solution(bc, g.num_nodes);
     free(bc);
 
-    //solution sol2;
-    //compute_bc_openmp(&g, &sol2);
-    //print_solution(&sol2, g.num_nodes);
+    //float *bc_2 = (float*)malloc(sizeof(float) * g_v.num_nodes);
+    //gpu_bc_node_virtual(&g_v, bc_2);
+    //print_solution(bc_2, g_v.num_nodes);
+    //free(bc_2);
+    float *bc_2 = (float*)malloc(sizeof(float) * g_v.num_nodes);
+    bc_virtual(g_v.vmap, g_v.outgoing_starts, g_v.outgoing_edges, g_v.num_nodes, g_v.num_edges, g_v.num_virtual_nodes, bc_2);
+    print_solution(bc_2, g_v.num_nodes);
+    free(bc_2);
+
+
+
+
 
     /*
     //Run the code with only one thread count and only report speedup

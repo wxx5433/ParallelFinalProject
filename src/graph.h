@@ -14,6 +14,7 @@ struct graph
 {
     int num_edges;
     int num_nodes;
+    int num_virtual_nodes;
 
     // The node reached by vertex i's first outgoing edge is given by
     // outgoing_edges[outgoing_starts[i]].  To iterate over all

@@ -18,8 +18,7 @@ int forward_propagation(graph *g, int src_node, std::vector<int> &d,
     distance = d[cur_node];
 
     int start_edge = g->outgoing_starts[cur_node];
-    int end_edge = (cur_node == g->num_nodes - 1)? 
-      g->num_edges: g->outgoing_starts[cur_node + 1];
+    int end_edge = g->outgoing_starts[cur_node + 1];
 
     // loop through all neighbors
     for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
@@ -49,8 +48,7 @@ void backward_propagation(graph *g, int src_node, int distance,
     for (int cur_node = 0; cur_node < num_nodes; ++cur_node) {
       if (d[cur_node] == distance) {
         int start_edge = g->outgoing_starts[cur_node];
-        int end_edge = (cur_node == num_nodes - 1)? 
-          g->num_edges: g->outgoing_starts[cur_node + 1];
+        int end_edge = g->outgoing_starts[cur_node + 1];
 
         // loop through all neighbors
         for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
@@ -69,8 +67,6 @@ void backward_propagation(graph *g, int src_node, int distance,
 }
 
 std::vector<float> compute_bc(graph *g) {
-  // initialize solution structure
-  //malloc_solution(sol, g->num_nodes);
   int num_nodes = g->num_nodes;
   std::vector<float> bc(num_nodes, 0);
 
@@ -79,17 +75,9 @@ std::vector<float> compute_bc(graph *g) {
 #endif
   // loop through all nodes to compute BC score
   for (int src_node = 0; src_node < g->num_nodes; ++src_node) {
-//#ifdef DEBUG
-    //if (src_node % 100 == 0) {
-      //std::cout << "processed " << src_node + 1 << " nodes!" << std::endl;
-    //}
-//#endif
     std::vector<int> d(num_nodes, NOT_VISITED_MARKER);
     std::vector<int> sigma(num_nodes, 0);
     int distance = forward_propagation(g, src_node, d, sigma);
-#ifdef DEBUG
-    std::cout << "node_id: " << src_node << ", distance: " << distance << std::endl;
-#endif
     backward_propagation(g, src_node, distance, d, sigma, bc);
   }
 #ifdef DEBUG
@@ -111,8 +99,7 @@ void backward_propagation_openmp(graph *g, int src_node, int distance,
     for (int cur_node = 0; cur_node < num_nodes; ++cur_node) {
       if (d[cur_node] == distance) {
         int start_edge = g->outgoing_starts[cur_node];
-        int end_edge = (cur_node == num_nodes - 1)? 
-          g->num_edges: g->outgoing_starts[cur_node + 1];
+        int end_edge = g->outgoing_starts[cur_node + 1];
 
         // loop through all neighbors
         for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {

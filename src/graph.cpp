@@ -8,15 +8,17 @@
 #include "graph.h"
 
 #define GRAPH_HEADER_TOKEN 0xDEADBEEF
+#define MAX_SPAN 4
 
 void build_start(graph* graph, int* scratch)
 {
   int num_nodes = graph->num_nodes;
-  graph->outgoing_starts = (int*)malloc(sizeof(int) * num_nodes);
+  graph->outgoing_starts = (int*)malloc(sizeof(int) * (num_nodes + 1));
   for(int i = 0; i < num_nodes; i++)
   {
     graph->outgoing_starts[i] = scratch[i];
   }
+  graph->outgoing_starts[num_nodes] = graph->num_edges;
 }
 
 void build_edges(graph* graph, int* scratch) {
@@ -78,7 +80,7 @@ void print_graph(const graph* graph) {
     for (int i=0; i<graph->num_nodes; i++) {
 
         int start_edge = graph->outgoing_starts[i];
-        int end_edge = (i == graph->num_nodes-1) ? graph->num_edges : graph->outgoing_starts[i+1];
+        int end_edge = graph->outgoing_starts[i + 1];
         printf("node %02d: out=%d: ", i, end_edge - start_edge);
         for (int j=start_edge; j<end_edge; j++) {
             int target = graph->outgoing_edges[j];
