@@ -2,9 +2,10 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#define THREAD_NUM 256
 #define DEBUG
 
-__global__ void forward_propagation_kernel (int *outgoing_starts, int *outgoing_edges, 
+__global__ void forward_kernel (int *outgoing_starts, int *outgoing_edges, 
     int *d, int *sigma, bool *cont, int *dist, int num_nodes) {
 	int v = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -28,7 +29,7 @@ __global__ void forward_propagation_kernel (int *outgoing_starts, int *outgoing_
   }
 }
 
-__global__ void backward_propagation_kernel (int *outgoing_starts, 
+__global__ void backward_kernel (int *outgoing_starts, 
     int* outgoing_edges, int *d, int *sigma, float *delta, float* bc, 
     int *dist, int num_nodes) {
   int v = blockIdx.x * blockDim.x + threadIdx.x;
@@ -112,7 +113,7 @@ void setup(const graph *g, int **outgoing_starts, int **outgoing_edges,
   cudaMalloc((void **)outgoing_edges, sizeof(int) * num_edges);
 
   cudaMemcpy(*outgoing_starts, g->outgoing_starts, 
-      sizeof(int) * (num_nodes+1), cudaMemcpyHostToDevice); 
+      sizeof(int) * (num_nodes + 1), cudaMemcpyHostToDevice); 
   cudaMemcpy(*outgoing_edges, g->outgoing_edges, 
       sizeof(int) * num_edges, cudaMemcpyHostToDevice); 
 
@@ -123,9 +124,21 @@ void setup(const graph *g, int **outgoing_starts, int **outgoing_edges,
   cudaMalloc((void **)dist, sizeof(int));
 
   cudaMalloc((void **)bc, sizeof(float) * num_nodes);
-  cudaMemset(bc, 0, sizeof(float) * num_nodes);
+  cudaMemset(*bc, 0, sizeof(float) * num_nodes);
 
   cudaMalloc((void **)d_cont, sizeof(bool));
+}
+
+void clean(int **outgoing_starts, int **outgoing_edges, int **d, 
+    int **sigma, float **delta, int **dist, float **bc, bool **d_cont) {
+  cudaFree(outgoing_starts);
+  cudaFree(outgoing_edges);
+  cudaFree(d);
+  cudaFree(sigma);
+  cudaFree(delta);
+  cudaFree(dist);
+  cudaFree(bc);
+  cudaFree(d_cont);
 }
 
 int gpu_bc_node (const graph *g, float *bc) {
@@ -141,7 +154,7 @@ int gpu_bc_node (const graph *g, float *bc) {
   setup(g, &device_outgoing_starts, &device_outgoing_edges, &device_d, 
       &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
 
-  dim3 blockDim(256);
+  dim3 blockDim(THREAD_NUM);
   dim3 gridDim((g->num_nodes + blockDim.x - 1) / blockDim.x);
 
   for(int node_id = 0; node_id < num_nodes; node_id++) {
@@ -152,12 +165,11 @@ int gpu_bc_node (const graph *g, float *bc) {
     // BFS
     do {
       cudaMemset(device_cont, false, sizeof(bool));
-      forward_propagation_kernel<<<gridDim, blockDim>>>(device_outgoing_starts, 
+      forward_kernel<<<gridDim, blockDim>>>(device_outgoing_starts, 
         device_outgoing_edges, device_d, device_sigma, device_cont, 
         device_dist, num_nodes);
       cudaDeviceSynchronize();
       cudaMemcpy(device_dist, &(++distance), sizeof(int), cudaMemcpyHostToDevice);
-      /*set_int_vertex<<<1,1>>>(device_dist, ++distance);*/
       cudaMemcpy(&cont, device_cont, sizeof(bool), cudaMemcpyDeviceToHost);
     } while (cont);
 
@@ -165,14 +177,12 @@ int gpu_bc_node (const graph *g, float *bc) {
     //Back propagation
     cudaMemset(device_delta, 0, sizeof(int) * num_nodes);
     cudaMemcpy(device_dist, &(--distance), sizeof(int), cudaMemcpyHostToDevice);
-    /*set_int_vertex<<<1,1>>>(device_dist, --distance);*/
     while (distance > 1) {
-      backward_propagation_kernel<<<gridDim, blockDim>>>(device_outgoing_starts, 
+      backward_kernel<<<gridDim, blockDim>>>(device_outgoing_starts, 
         device_outgoing_edges, device_d, device_sigma, device_delta, 
         device_bc, device_dist, num_nodes);
       cudaDeviceSynchronize();
       cudaMemcpy(device_dist, &(--distance), sizeof(int), cudaMemcpyHostToDevice);
-      /*set_int_vertex<<<1,1>>>(device_dist, --distance);*/
     }
     compute_bc_kernel<<<gridDim, blockDim>>>(node_id, device_d, 
       device_delta, device_bc, num_nodes);
@@ -180,14 +190,8 @@ int gpu_bc_node (const graph *g, float *bc) {
 
   cudaMemcpy(bc, device_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost);
 
-  cudaFree(device_outgoing_starts);
-  cudaFree(device_outgoing_edges);
-  cudaFree(device_d);
-  cudaFree(device_sigma);
-  cudaFree(device_delta);
-  cudaFree(device_dist);
-  cudaFree(device_bc);
-  cudaFree(device_cont);
+  clean(&device_outgoing_starts, &device_outgoing_edges, &device_d, 
+      &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
 
 #ifdef DEBUG
   float total_time = CycleTimer::currentSeconds() - start_time;
@@ -259,7 +263,7 @@ int bc_vertex_deg1 (int *h_ptrs, int* h_js, int num_nodes, int num_edges, int nb
 #endif
 
 			cudaMemset(device_continue, 0, sizeof(bool));
-			forward_propagation_kernel<<<grid,threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_continue, device_dist, num_nodes);
+			forward_kernel<<<grid,threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_continue, device_dist, num_nodes);
 			cudaThreadSynchronize();
 			set_int_vertex<<<1,1>>>(device_dist, ++distance);
 			cudaMemcpy(&h_continue, device_continue, sizeof(bool), cudaMemcpyDeviceToHost);
@@ -284,7 +288,7 @@ int bc_vertex_deg1 (int *h_ptrs, int* h_js, int num_nodes, int num_edges, int nb
 		init_delta<<<grid, threads>>>(d_weight, device_delta, num_nodes); // deltas are initialized
 		set_int_vertex<<<1,1>>>(device_dist, --distance);
 		while(distance > 1) {
-			backward_propagation_kernel<<<grid, threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_delta, device_bc, device_dist, num_nodes);
+			backward_kernel<<<grid, threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_delta, device_bc, device_dist, num_nodes);
 			cudaThreadSynchronize();
 			set_int_vertex<<<1,1>>>(device_dist, --distance);
 		}

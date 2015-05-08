@@ -1,6 +1,6 @@
 EXECUTABLE := betweenness_centrality
 
-CU_FILES   := gpu_bc_node.cu gpu_bc_node_virtual.cu
+CU_FILES   := gpu_bc_node.cu gpu_bc_node_virtual.cu deg1_order.cu edge_bc.cu
 
 CC_FILES   := main.cpp graph.cpp cpu_bc.cpp 
 
@@ -33,7 +33,9 @@ LDFRAMEWORKS := $(addprefix -framework , $(FRAMEWORKS))
 NVCC=nvcc
 
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/graph.o $(OBJDIR)/cpu_bc.o \
-     $(OBJDIR)/gpu_bc_node.o $(OBJDIR)/gpu_bc_node_virtual.o
+     $(OBJDIR)/gpu_bc_node.o $(OBJDIR)/gpu_bc_node_virtual.o \
+     $(OBJDIR)/deg1_order.o $(OBJDIR)/edge_bc.o 
+
 
 .PHONY: dirs clean
 
