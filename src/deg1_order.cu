@@ -34,7 +34,7 @@ __global__ void set_degree_kernel(int* v, int* d_degrees, int n) {
     }
 }
 
-__global__ void degree1_kernel (int* v, int* e, int* d_tadj, int n, float* d_bc, int* d_weight, bool *d_continue, int* d_degree) {
+__global__ void degree1_kernel (int* v, int* e, int n, float* d_bc, int* d_weight, bool *d_continue, int* d_degree) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < n) {
         if (d_degree[tid] == 1) {
@@ -47,7 +47,7 @@ __global__ void degree1_kernel (int* v, int* e, int* d_tadj, int n, float* d_bc,
                 vertex = e[i];
                 if (vertex != -1) {
                     e[i] = -1;
-                    e[d_tadj[i]] = -1;
+                    //e[d_tadj[i]] = -1;
                     remwght = n - d_weight[tid];
                     d_bc[tid] += (d_weight[tid] - 1) * remwght;
 
@@ -63,18 +63,18 @@ __global__ void degree1_kernel (int* v, int* e, int* d_tadj, int n, float* d_bc,
 
 
 
-int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, int* map_for_order, int* reverse_map_for_order, FILE* ofp) {
+int preprocess(int *xadj, int* adj, int *np, float* bc, int* weight, int* map_for_order, int* reverse_map_for_order, FILE* ofp) {
     int n = *np;      // number of vertices
     int nz = xadj[n]; // number of edges    
     fflush(0);
-    int *d_xadj, *d_adj, *d_tadj, *d_weight;
+    int *d_xadj, *d_adj, *d_weight;
     int *d_degrees;
     float *d_bc;
     bool h_continue, *d_continue;
 
     checkCudaErrors(cudaMalloc((void **)&d_xadj, sizeof(int)*(n+1)));
     checkCudaErrors(cudaMalloc((void **)&d_adj, sizeof(int)* nz));
-    checkCudaErrors(cudaMalloc((void **)&d_tadj, sizeof(int)* nz));
+    //checkCudaErrors(cudaMalloc((void **)&d_tadj, sizeof(int)* nz));
     checkCudaErrors(cudaMalloc((void **)&d_weight, sizeof(int)* n));
     checkCudaErrors(cudaMalloc((void **)&d_bc, sizeof(float)* n));
     checkCudaErrors(cudaMalloc((void **)&d_degrees, sizeof(int)* n));
@@ -82,10 +82,12 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
 
     checkCudaErrors(cudaMemcpy(d_xadj, xadj, sizeof(int) * (n+1), cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_adj, adj, sizeof(int) * nz, cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_tadj, tadj, sizeof(int) * nz, cudaMemcpyHostToDevice));
+    //checkCudaErrors(cudaMemcpy(d_tadj, tadj, sizeof(int) * nz, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemset(d_bc, 0, sizeof(float) * n));
     checkCudaErrors(cudaMemcpy(d_weight, weight, sizeof(int) * n, cudaMemcpyHostToDevice));    
 
+
+    //printf("prep reaches here\n");
     int threads_per_block = n;
     int blocks = 1;
     if(n > 256){
@@ -100,7 +102,7 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
     do {
         h_continue = false;
         cudaMemcpy(d_continue, &h_continue, sizeof(bool), cudaMemcpyHostToDevice);
-        degree1_kernel<<<grid, threads>>>(d_xadj, d_adj, d_tadj, n, d_bc, d_weight, d_continue, d_degrees);
+        degree1_kernel<<<grid, threads>>>(d_xadj, d_adj, n, d_bc, d_weight, d_continue, d_degrees);
         cudaThreadSynchronize();
         cudaError_t error = cudaGetLastError();
         if(error != cudaSuccess){
@@ -120,11 +122,12 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
    
     cudaFree(d_xadj);
     cudaFree(d_adj);
-    cudaFree(d_tadj);
+    //cudaFree(d_tadj);
     cudaFree(d_bc);
     cudaFree(d_weight);
     cudaFree(d_continue);
 
+    //printf("prep is here\n");
     int ptr = 0, idx = 0;
     for (i = 0; i < n; ++i) {
         int flag = 0;
@@ -141,13 +144,13 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
         if (!flag)
             xadj[idx++] = ptr;
     }
-  
+    //printf("prep is here\n");
     for (i = idx; i > 0; i--) {
         xadj[i] = xadj[i-1];
     }
     xadj[0] = 0;
-
-    int vcount;
+    //debug this section
+    int vcount = 0;
     for (int i = 0; i < n; i++) {
         if(xadj[i+1] != xadj[i]) {
             bc[vcount] = bc[i];
@@ -159,6 +162,8 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
 	} else
             fprintf(ofp, "bc[%d]: %lf\n", i, bc[i]);
     }
+
+    printf("i guess here\n");
     for (int i = 0; i < xadj[vcount]; i++) {
         adj[i] = map_for_order[adj[i]];
     }
@@ -243,7 +248,7 @@ void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount
 		}
 	}
 
-	free(mark);
+	//free(mark);
 	free(bfsorder);
 
 	int* new_weight = (int*) malloc (sizeof(int) * n);
@@ -266,29 +271,29 @@ void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount
 			}
 		}
 	}
-	else
+	else {
 		for (int i = 0; i < vcount; i++) {
 			int u = my_map_for_order[i];
 			temp_map_for_order[i] = u;
 			temp_reverse_map_for_order[u] = i;
 		}
-
+        }
 	memcpy(map_for_order, temp_map_for_order, sizeof(int) * vcount);
 	memcpy(reverse_map_for_order, temp_reverse_map_for_order, sizeof(int) * vcount);
 
-	free (my_map_for_order);
-	free (my_reverse_map_for_order);
-	free (temp_map_for_order);
-	free (temp_reverse_map_for_order);
+	//free (my_map_for_order);
+	//free (my_reverse_map_for_order);
+	//free (temp_map_for_order);
+	//free (temp_reverse_map_for_order);
 
 	memcpy(xadj, new_xadj, sizeof(int) * (n+1));
 	memcpy(adj, new_adj, sizeof(int) * xadj[n]);
-	free (new_adj);
-	free (new_xadj);
+	//free (new_adj);
+	//free (new_xadj);
 
 	memcpy(bc, new_bc, sizeof(int)*n);
 	memcpy(weight, new_weight, sizeof(int)*n);
 	free(new_bc);
 	free(new_weight);     
-
+        printf("Order graph done\n");
 }
