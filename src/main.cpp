@@ -61,75 +61,81 @@ int main(int argc, char** argv) {
     printf("Graph stats:\n");
     printf("  Edges: %d\n", g.num_edges);
     printf("  Nodes: %d\n", g.num_nodes);
-    printf("  VNodes: %d\n", g.num_vnodes);
+
+    graph_virtual g_v;
+    build_virtual_graph(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, &g_v);
+    //print_graph_virtual(&g_v);
+    printf("\n");
+    printf("Graph stats:\n");
+    printf("  Edges: %d\n", g_v.num_edges);
+    printf("  Nodes: %d\n", g_v.num_nodes);
+    printf("  VNodes: %d\n", g_v.num_vnodes);
+
  
     int n = g.num_nodes;
     int nz = g.num_edges;
 
-    int* starts = g.outgoing_starts;
-    int* edges = g.outgoing_edges;
-    int* degs = (int*)malloc(sizeof(int) * n);
-    int* tadj = (int*)malloc(sizeof(int) * nz);
+    //int* starts = g.outgoing_starts;
+    //int* edges = g.outgoing_edges;
+    //int* degs = (int*)malloc(sizeof(int) * n);
+    //int* tadj = (int*)malloc(sizeof(int) * nz);
 
-   
-
-
-    memcpy(degs, starts, sizeof(int) * n);
-	for(int i = 0; i < n; i++) {
-		for(int ptr = starts[i]; ptr < starts[i+1]; ptr++) {
-			int j = edges[ptr];
-			if(i < j) {
-				tadj[ptr] = degs[j];
-				tadj[degs[j]++] = ptr;
-			}
-		}
-	}
-    //printf("im here\n");    
-    init();
-    FILE* ofp;
-    ofp = fopen("bc_out.txt", "w");   
-    int* map_for_order = (int *) malloc(n * sizeof(int));
-    int* reverse_map_for_order = (int *) malloc(n * sizeof(int));
-    int* weight = (int *) malloc(sizeof(int) * n);
-    float* bc = (float*)malloc(sizeof(float) * g.num_nodes);
-    for(int i = 0; i < n; i++) {
-        weight[i] = 1;
-        map_for_order[i] = -1;
-        reverse_map_for_order[i] = -1;
-    }
-
-    printf("prepro reaches here\n");
-    preprocess (starts, edges, tadj, &n, bc, weight, map_for_order, reverse_map_for_order, ofp);
-    nz = starts[n];
-    
-    printf("pre order reaches here\n"); 
-    order_graph (starts, edges, weight, bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
-    //printf("here?\n");
-    int* list = (int*) malloc(sizeof(int) * nz);
-    for(int i = 0; i < n; i++) {
-        for(int j = starts[i]; j < starts[i+1]; j++) {
-            list[j] = i;
-        }
-    }
-    //printf("here?\n");
+    //memcpy(degs, starts, sizeof(int) * n);
+    //for(int i = 0; i < n; i++) {
+      //for(int ptr = starts[i]; ptr < starts[i+1]; ptr++) {
+        //int j = edges[ptr];
+        //if(i < j) {
+          //tadj[ptr] = degs[j];
+          //tadj[degs[j]++] = ptr;
+        //}
+      //}
+    //}
+    ////printf("im here\n");    
+    //init();
+    //FILE* ofp;
+    //ofp = fopen("bc_out.txt", "w");   
+    //int* map_for_order = (int *) malloc(n * sizeof(int));
+    //int* reverse_map_for_order = (int *) malloc(n * sizeof(int));
+    //int* weight = (int *) malloc(sizeof(int) * n);
     //float* bc = (float*)malloc(sizeof(float) * g.num_nodes);
-    double begin = CycleTimer::currentSeconds();
-    bc_edge (list, edges, n, nz, n, bc); 
-    double end = CycleTimer::currentSeconds();
-    printf("bc_edge_deg1_ord takes %f s\n", end-begin);
-    //std::vector<float> bc_cpu_sequential = compute_bc(&g);
-    //print_solution(bc, n);
+    //for(int i = 0; i < n; i++) {
+        //weight[i] = 1;
+        //map_for_order[i] = -1;
+        //reverse_map_for_order[i] = -1;
+    //}
+
+    //printf("prepro reaches here\n");
+    //preprocess (starts, edges, tadj, &n, bc, weight, map_for_order, reverse_map_for_order, ofp);
+    //nz = starts[n];
     
-    printf("bc edge done\n");
-    /*for (int i = 0; i < n; i++) {
-      printf("bc score for node %d: %f\n", i, bc[i]);
-    }*/
-    free(bc);
-    free(degs);
-    free(tadj);
-    free(map_for_order);
-    free(reverse_map_for_order);
-    free(weight);
+    //printf("pre order reaches here\n"); 
+    //order_graph (starts, edges, weight, bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
+    ////printf("here?\n");
+    //int* list = (int*) malloc(sizeof(int) * nz);
+    //for(int i = 0; i < n; i++) {
+        //for(int j = starts[i]; j < starts[i+1]; j++) {
+            //list[j] = i;
+        //}
+    //}
+    ////printf("here?\n");
+    ////float* bc = (float*)malloc(sizeof(float) * g.num_nodes);
+    //double begin = CycleTimer::currentSeconds();
+    //bc_edge (list, edges, n, nz, n, bc); 
+    //double end = CycleTimer::currentSeconds();
+    //printf("bc_edge_deg1_ord takes %f s\n", end-begin);
+    ////std::vector<float> bc_cpu_sequential = compute_bc(&g);
+    ////print_solution(bc, n);
+    
+    //printf("bc edge done\n");
+    ////[>for (int i = 0; i < n; i++) {
+      ////printf("bc score for node %d: %f\n", i, bc[i]);
+    ////}*/
+    //free(bc);
+    //free(degs);
+    //free(tadj);
+    //free(map_for_order);
+    //free(reverse_map_for_order);
+    //free(weight);
     
     /*begin = CycleTimer::currentSeconds();
     std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
@@ -143,24 +149,26 @@ int main(int argc, char** argv) {
     ////print_solution(bc, g.num_nodes);
     //free(bc);
 
-    //float *bc_2 = (float*)malloc(sizeof(float) * g.num_nodes);
-    //bc_virtual(g.vmap, g.voutgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, g.num_vnodes, bc_2);
-    //print_solution(bc_2, g.num_nodes);
-    //free(bc_2);
+    printf("bc_virtual\n");
+    float *bc_2 = (float*)malloc(sizeof(float) * g.num_nodes);
+    bc_virtual(&g_v, bc_2);
+    print_solution(bc_2, g.num_nodes);
+    free(bc_2);
 
-    //printf("bc_3\n");
-    //float *bc_3 = (float*)malloc(sizeof(float) * g.num_nodes);
-    //bc_virtual_coalesced(g.vmap, g.voutgoing_starts, g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.offset, g.nvir, g.num_edges, g.num_vnodes, bc_3);
-    //print_solution(bc_3, g.num_nodes);
-    //free(bc_3);
+    printf("bc_virtual_stride\n");
+    float *bc_3 = (float*)malloc(sizeof(float) * g.num_nodes);
+    bc_virtual_stride(&g_v, bc_3);
+    print_solution(bc_3, g.num_nodes);
+    free(bc_3);
 
-
-    //free(g.vmap);
-    //free(g.offset);
-    //free(g.nvir);
-    //free(g.voutgoing_starts);
-    //free(g.outgoing_starts);
-    //free(g.outgoing_edges);
+    free(g.outgoing_starts);
+    free(g.outgoing_edges);
+    free(g_v.vmap);
+    free(g_v.offset);
+    free(g_v.nvir);
+    free(g_v.voutgoing_starts);
+    free(g_v.outgoing_starts);
+    free(g_v.outgoing_edges);
 
     /*
     //Run the code with only one thread count and only report speedup
