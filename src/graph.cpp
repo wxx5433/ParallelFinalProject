@@ -1,27 +1,58 @@
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
-#include <vector>
-
 #include "graph.h"
 
-#define GRAPH_HEADER_TOKEN 0xDEADBEEF
-#define MAX_SPAN 4
-
-void build_start(graph* graph, int* scratch)
-{
+void build_start(graph *graph, int *scratch) {
   int num_nodes = graph->num_nodes;
+  int num_edges = graph->num_edges;
+  int num;
+  std::vector<int> vmap;
+  std::vector<int> offset;
+  std::vector<int> nvir;
+  std::vector<int> voutgoing_starts;
+
   graph->outgoing_starts = (int*)malloc(sizeof(int) * (num_nodes + 1));
-  for(int i = 0; i < num_nodes; i++)
-  {
+  graph->outgoing_starts[0] = 0;
+  graph->outgoing_starts[num_nodes] = num_edges;
+
+  vmap.push_back(0);
+  offset.push_back(0);
+  voutgoing_starts.push_back(scratch[0]);
+  for (int i = 1; i < num_nodes; ++i) {
     graph->outgoing_starts[i] = scratch[i];
+    num = (scratch[i] - scratch[i - 1] - 1) / MAX_SPAN;
+    nvir.push_back(num + 1);
+    for (int j = 1; j <= num; ++j) {
+      vmap.push_back(i - 1);
+      offset.push_back(scratch[i - 1] + j);
+      voutgoing_starts.push_back(scratch[i - 1] + j * MAX_SPAN);
+    }
+    offset.push_back(scratch[i]);
+    vmap.push_back(i);
+    voutgoing_starts.push_back(scratch[i]);
   }
-  graph->outgoing_starts[num_nodes] = graph->num_edges;
+  num = (num_edges - scratch[num_nodes - 1] - 1) / MAX_SPAN;
+  nvir.push_back(num + 1);
+
+  int num_vnodes = vmap.size();
+  graph->num_vnodes = num_vnodes;
+  offset[num_vnodes] = num_edges;
+  vmap[num_vnodes] = num_nodes;
+  voutgoing_starts[num_vnodes] = num_nodes;
+
+  graph->vmap = (int*)malloc(sizeof(int) * (num_vnodes + 1));
+  graph->offset = (int*)malloc(sizeof(int) * (num_vnodes + 1));
+  graph->nvir = (int*)malloc(sizeof(int) * (num_nodes + 1));
+  graph->voutgoing_starts = (int*)malloc(sizeof(int) * (num_vnodes + 1));
+  for (int i = 0; i < num_nodes; ++i) {
+    graph->nvir[i] = nvir[i];
+  }
+  for (int i = 0; i < num_vnodes + 1; ++i) {
+    graph->vmap[i] = vmap[i];
+    graph->offset[i] = offset[i];
+    graph->voutgoing_starts[i] = voutgoing_starts[i];
+  }
 }
 
-void build_edges(graph* graph, int* scratch) {
+void build_edges(graph *graph, int *scratch) {
   int num_nodes = graph->num_nodes;
 
   graph->outgoing_edges = (int*)malloc(sizeof(int) * graph->num_edges);
@@ -31,7 +62,7 @@ void build_edges(graph* graph, int* scratch) {
   }
 }
 
-void get_meta_data(std::ifstream& file, graph* graph) {
+void get_meta_data(std::ifstream& file, graph *graph) {
   // going back to the beginning of the file
   file.clear();
   file.seekg(0, std::ios::beg);
@@ -51,8 +82,48 @@ void get_meta_data(std::ifstream& file, graph* graph) {
 
 }
 
-void read_graph_file(std::ifstream& file, int* scratch)
-{
+void load_graph(const char *filename, graph *graph) {
+  // open the file
+  std::ifstream graph_file;
+  graph_file.open(filename);
+  get_meta_data(graph_file, graph);
+
+  int* scratch = (int*) malloc(sizeof(int) * (graph->num_nodes + graph->num_edges));
+  read_graph_file(graph_file, scratch);
+
+  build_start(graph, scratch);
+  build_edges(graph, scratch);
+
+  free(scratch);
+
+  //print_graph_virtual(graph);
+}
+
+void print_graph(const graph *graph) {
+
+    printf("Graph pretty print:\n");
+    printf("num_nodes=%d\n", graph->num_nodes);
+    printf("num_edges=%d\n", graph->num_edges);
+    printf("num_virtual_nodes=%d\n", graph->num_vnodes);
+
+    for (int i = 0; i < graph->num_nodes; ++i) {
+      printf("starts %d: %d\n", i, graph->outgoing_starts[i]);
+    }
+
+    for (int i=0; i<graph->num_vnodes; i++) {
+
+        int start_edge = graph->voutgoing_starts[i];
+        int end_edge = graph->voutgoing_starts[i+1];
+        printf("virtual node: %d, node %d, offset %d, out=%d: ", i, graph->vmap[i], graph->offset[i], end_edge - start_edge);
+        for (int j=start_edge; j<end_edge; j++) {
+            int target = graph->outgoing_edges[j];
+            printf("%d ", target);
+        }
+        printf("\n");
+    }
+}
+
+void read_graph_file(std::ifstream& file, int* scratch) {
   std::string buffer;
   int idx = 0;
   while(!file.eof())
@@ -69,117 +140,4 @@ void read_graph_file(std::ifstream& file, int* scratch)
     scratch[idx] = v;
     idx++;
   }
-}
-
-void print_graph(const graph* graph) {
-
-    printf("Graph pretty print:\n");
-    printf("num_nodes=%d\n", graph->num_nodes);
-    printf("num_edges=%d\n", graph->num_edges);
-
-    for (int i=0; i<graph->num_nodes; i++) {
-
-        int start_edge = graph->outgoing_starts[i];
-        int end_edge = graph->outgoing_starts[i + 1];
-        printf("node %02d: out=%d: ", i, end_edge - start_edge);
-        for (int j=start_edge; j<end_edge; j++) {
-            int target = graph->outgoing_edges[j];
-            printf("%d ", target);
-        }
-        printf("\n");
-    }
-}
-
-void load_graph(const char* filename, graph* graph)
-{
-  // open the file
-  std::ifstream graph_file;
-  graph_file.open(filename);
-  get_meta_data(graph_file, graph);
-
-  int* scratch = (int*) malloc(sizeof(int) * (graph->num_nodes + graph->num_edges));
-  read_graph_file(graph_file, scratch);
-
-  build_start(graph, scratch);
-  build_edges(graph, scratch);
-  free(scratch);
-
-  //build_incoming_edges(graph);
-
-  //print_graph(graph);
-}
-
-void load_graph_binary(const char* filename, graph* graph) {
-
-    FILE* input = fopen(filename, "rb");
-
-    if (!input) {
-        fprintf(stderr, "Could not open: %s\n", filename);
-        exit(1);
-    }
-
-    int header[3];
-
-    if (fread(header, sizeof(int), 3, input) != 3) {
-        fprintf(stderr, "Error reading header.\n");
-        exit(1);
-    }
-
-    if (header[0] != GRAPH_HEADER_TOKEN) {
-        fprintf(stderr, "Invalid graph file header. File may be corrupt.\n");
-        exit(1);
-    }
-
-    graph->num_nodes = header[1];
-    graph->num_edges = header[2];
-
-    graph->outgoing_starts = (int*)malloc(sizeof(int) * graph->num_nodes);
-    graph->outgoing_edges = (int*)malloc(sizeof(int) * graph->num_edges);
-
-    if (fread(graph->outgoing_starts, sizeof(int), graph->num_nodes, input) != graph->num_nodes) {
-        fprintf(stderr, "Error reading nodes.\n");
-        exit(1);
-    }
-
-    if (fread(graph->outgoing_edges, sizeof(int), graph->num_edges, input) != graph->num_edges) {
-        fprintf(stderr, "Error reading edges.\n");
-        exit(1);
-    }
-
-    fclose(input);
-
-    //build_incoming_edges(graph);
-    //print_graph(graph);
-}
-
-void store_graph_binary(const char* filename, graph* graph) {
-
-    FILE* output = fopen(filename, "wb");
-
-    if (!output) {
-        fprintf(stderr, "Could not open: %s\n", filename);
-        exit(1);
-    }
-
-    int header[3];
-    header[0] = GRAPH_HEADER_TOKEN;
-    header[1] = graph->num_nodes;
-    header[2] = graph->num_edges;
-
-    if (fwrite(header, sizeof(int), 3, output) != 3) {
-        fprintf(stderr, "Error writing header.\n");
-        exit(1);
-    }
-
-    if (fwrite(graph->outgoing_starts, sizeof(int), graph->num_nodes, output) != graph->num_nodes) {
-        fprintf(stderr, "Error writing nodes.\n");
-        exit(1);
-    }
-
-    if (fwrite(graph->outgoing_edges, sizeof(int), graph->num_edges, output) != graph->num_edges) {
-        fprintf(stderr, "Error writing edges.\n");
-        exit(1);
-    }
-
-    fclose(output);
 }

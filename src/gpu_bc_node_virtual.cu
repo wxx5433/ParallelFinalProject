@@ -57,8 +57,7 @@ __global__ void forward_virtual_coalesced (int* d_vmap, int* d_vptrs, int* d_vjs
     int u = d_vmap[vu];
     /* for each edge (u, w) s.t. u is unvisited, w is in the current level */
     if(d_d[u] == *d_dist) {
-      /*int end = d_xadj[u + 1];*/
-      int end = d_xadj[vu + 1];
+      int end = d_xadj[u + 1];
       int stride = d_stride[u];  // stride ==> nvir
       for(int p = d_startoffset[vu]; p < end; p+=stride) {
         int w = d_vjs[p];
@@ -199,15 +198,15 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
       assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
       forward_virtual<<<gridDim_virtual,blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count);
       cudaDeviceSynchronize();
-#ifdef DEBUG
-    int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);
-    cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);
-    cout << "distance: " << h_dist << endl;
-    for (int i = 0; i < n_count; ++i) {
-      cout << "\t" << tmp_sigma[i];
-    }
-    cout << endl;
-#endif
+/*#ifdef DEBUG*/
+    /*int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);*/
+    /*cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);*/
+    /*cout << "distance: " << h_dist << endl;*/
+    /*for (int i = 0; i < n_count; ++i) {*/
+      /*cout << "\t" << tmp_sigma[i];*/
+    /*}*/
+    /*cout << endl;*/
+/*#endif*/
       set_int<<<1,1>>>(d_dist, ++h_dist);
       assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
 
@@ -243,7 +242,6 @@ int bc_virtual (int* h_vmap, int* h_vptrs, int* h_vjs, int n_count, int e_count,
   return 0;
 }
 
-// TODO remove h_xadj
 int bc_virtual_coalesced (int* h_vmap, int* h_vptrs, int* h_xadj, int* h_vjs, int n_count, int* h_startoffset, int* h_stride, int e_count, int virn_count, float *h_bc) {
   int *d_vmap, *d_vptrs, *d_vjs, *d_d, *d_sigma, *d_dist, h_dist;
   float *d_delta, *d_bc;
@@ -297,15 +295,15 @@ int bc_virtual_coalesced (int* h_vmap, int* h_vptrs, int* h_xadj, int* h_vjs, in
     do{
       assert (cudaSuccess == cudaMemset(d_continue, 0, sizeof(bool)));
     forward_virtual_coalesced<<<gridDim_virtual, blockDim_virtual>>>(d_vmap, d_vptrs, d_vjs, d_d, d_sigma, d_continue, d_dist, virn_count, d_stride, d_startoffset, d_xadj);
-#ifdef DEBUG
-    int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);
-    cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);
-    cout << "distance: " << h_dist << endl;
-    for (int i = 0; i < n_count; ++i) {
-      cout << "\t" << tmp_sigma[i];
-    }
-    cout << endl;
-#endif
+/*#ifdef DEBUG*/
+    /*int *tmp_sigma = (int*)malloc(sizeof(int) * n_count);*/
+    /*cudaMemcpy(tmp_sigma, d_sigma, sizeof(int) * n_count, cudaMemcpyDeviceToHost);*/
+    /*cout << "distance: " << h_dist << endl;*/
+    /*for (int i = 0; i < n_count; ++i) {*/
+      /*cout << "\t" << tmp_sigma[i];*/
+    /*}*/
+    /*cout << endl;*/
+/*#endif*/
       cudaDeviceSynchronize();
       set_int<<<1,1>>>(d_dist, ++h_dist);
       assert (cudaSuccess == cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
