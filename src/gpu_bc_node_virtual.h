@@ -11,8 +11,8 @@
 
 #define NOT_VISITED_MARKER -1
 
-int gpu_bc_node_virtual (const graph *g, float *bc);
-int bc_virtual (const graph *g, float *bc);
-int bc_virtual_stride (const graph *g, float *bc);
+int gpu_bc_node_virtual (const graph_virtual *g, float *bc);
+int bc_virtual (const graph_virtual *g, float *bc);
+int bc_virtual_stride (const graph_virtual *g, float *bc);
 
 #endif
