@@ -176,7 +176,7 @@ __global__ void init_virtual_kernel (int s, int *device_d,
   /**dest = val;*/
 /*}*/
 
-void bc_virtual_setup(const graph *g, int **device_vmap, 
+void bc_virtual_setup(const graph_virtual *g, int **device_vmap, 
     int **device_voutgoing_starts, int **device_outgoing_edges, 
     int **device_d, int **device_sigma, float **device_delta, 
     int **device_dist, float **device_bc, bool **device_cont) {
@@ -222,7 +222,7 @@ void bc_virtual_clean(int **device_vmap,
   cudaFree(device_cont);
 }
 
-int bc_virtual (const graph *g, float *bc) {
+int bc_virtual (const graph_virtual *g, float *bc) {
   int *device_vmap, *device_voutgoing_starts, *device_outgoing_edges;
   int *device_d, *device_sigma, *device_dist, dist;
   float *device_delta, *device_bc;
@@ -288,7 +288,7 @@ int bc_virtual (const graph *g, float *bc) {
   return 0;
 }
 
-void bc_virtual_stride_setup(const graph *g, int **device_vmap, 
+void bc_virtual_stride_setup(const graph_virtual *g, int **device_vmap, 
     int **device_outgoing_edges, int **device_outgoing_starts, 
     int **device_offset, int **device_nvir, int **device_d, 
     int **device_sigma, float **device_delta, int **device_dist, 
@@ -348,7 +348,7 @@ void bc_virtual_stride_clean(int **device_vmap, int **device_outgoing_edges,
 }
 
 
-int bc_virtual_stride (const graph *g, float *bc) {
+int bc_virtual_stride (const graph_virtual *g, float *bc) {
   int *device_vmap, *device_outgoing_starts, *device_outgoing_edges;
   int *device_d, *device_sigma, *device_dist, dist;
   int *device_offset, *device_nvir;

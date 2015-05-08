@@ -9,8 +9,8 @@ LOGS	   := logs
 ARCH=$(shell uname | sed -e 's/-.*//g')
 OBJDIR=objs
 CXX=g++ -m64
-#CXXFLAGS=-O3 -Wall -g -fopenmp
-CXXFLAGS=-O0 -Wall -g -fopenmp
+CXXFLAGS=-O3 -Wall -g -fopenmp
+#CXXFLAGS=-O0 -Wall -g -fopenmp
 
 LIBS       :=
 FRAMEWORKS := 
