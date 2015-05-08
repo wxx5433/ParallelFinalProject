@@ -9,7 +9,6 @@
 
 #include "CycleTimer.h"
 #include "graph.h"
-#include "graph_virtual.h"
 #include "cpu_bc.h"
 #include "gpu_bc_node.h"
 #include "gpu_bc_node_virtual.h"
@@ -56,43 +55,42 @@ int main(int argc, char** argv) {
         //store_graph_binary(graph_filename.append(".bin").c_str(), &g);
         //exit(1);
     //}
+    //print_graph(&g);
     printf("\n");
     printf("Graph stats:\n");
     printf("  Edges: %d\n", g.num_edges);
     printf("  Nodes: %d\n", g.num_nodes);
+    printf("  VNodes: %d\n", g.num_vnodes);
 
-    graph_virtual g_v;
-    printf("Loading graph...\n");
-    load_graph_virtual(argv[1], &g_v);
-    //print_graph_virtual(&g_v);
-    printf("\n");
-    printf("Graph stats:\n");
-    printf("  Edges: %d\n", g_v.num_edges);
-    printf("  Nodes: %d\n", g_v.num_nodes);
-
-    std::vector<float> bc_cpu_sequential = compute_bc(&g);
-    print_solution(&bc_cpu_sequential[0], g.num_nodes);
+    //std::vector<float> bc_cpu_sequential = compute_bc(&g);
+    //print_solution(&bc_cpu_sequential[0], g.num_nodes);
      
-    std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
-    print_solution(&bc_cpu_openmp[0], g.num_nodes);
+    //std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
+    //print_solution(&bc_cpu_openmp[0], g.num_nodes);
 
-    float *bc = (float*)malloc(sizeof(float) * g.num_nodes);
-    gpu_bc_node(&g, bc);
-    print_solution(bc, g.num_nodes);
-    free(bc);
+    //float *bc = (float*)malloc(sizeof(float) * g.num_nodes);
+    //gpu_bc_node(&g, bc);
+    ////print_solution(bc, g.num_nodes);
+    //free(bc);
 
-    //float *bc_2 = (float*)malloc(sizeof(float) * g_v.num_nodes);
-    //gpu_bc_node_virtual(&g_v, bc_2);
-    //print_solution(bc_2, g_v.num_nodes);
-    //free(bc_2);
-    float *bc_2 = (float*)malloc(sizeof(float) * g_v.num_nodes);
-    bc_virtual(g_v.vmap, g_v.outgoing_starts, g_v.outgoing_edges, g_v.num_nodes, g_v.num_edges, g_v.num_virtual_nodes, bc_2);
-    print_solution(bc_2, g_v.num_nodes);
+    float *bc_2 = (float*)malloc(sizeof(float) * g.num_nodes);
+    bc_virtual(g.vmap, g.voutgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, g.num_vnodes, bc_2);
+    //print_solution(bc_2, g.num_nodes);
     free(bc_2);
 
+    printf("bc_3\n");
+    float *bc_3 = (float*)malloc(sizeof(float) * g.num_nodes);
+    bc_virtual_coalesced(g.vmap, g.voutgoing_starts, g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.offset, g.nvir, g.num_edges, g.num_vnodes, bc_3);
+    //print_solution(bc_3, g.num_nodes);
+    free(bc_3);
 
 
-
+    free(g.vmap);
+    free(g.offset);
+    free(g.nvir);
+    free(g.voutgoing_starts);
+    free(g.outgoing_starts);
+    free(g.outgoing_edges);
 
     /*
     //Run the code with only one thread count and only report speedup
