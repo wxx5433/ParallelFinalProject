@@ -148,9 +148,6 @@ int gpu_bc_node (const graph *g, float *bc) {
   bool cont, *device_cont;
   int num_nodes = g->num_nodes;
 
-#ifdef DEBUG
-  float start_time = CycleTimer::currentSeconds();
-#endif
   setup(g, &device_outgoing_starts, &device_outgoing_edges, &device_d, 
       &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
 
@@ -192,11 +189,6 @@ int gpu_bc_node (const graph *g, float *bc) {
 
   clean(&device_outgoing_starts, &device_outgoing_edges, &device_d, 
       &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
-
-#ifdef DEBUG
-  float total_time = CycleTimer::currentSeconds() - start_time;
-  std::cout << "\ttotal time for gpu_bc_node: " << total_time << std::endl;
-#endif
 
   return 0;
 }

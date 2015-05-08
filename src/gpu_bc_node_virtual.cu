@@ -230,10 +230,6 @@ int bc_virtual (const graph_virtual *g, float *bc) {
   int num_nodes = g->num_nodes;
   int num_vnodes = g->num_vnodes;
 
-#ifdef DEBUG
-  float start_time = CycleTimer::currentSeconds();
-#endif
-
   bc_virtual_setup(g, &device_vmap, &device_voutgoing_starts, 
       &device_outgoing_edges, &device_d, &device_sigma, 
       &device_delta, &device_dist, &device_bc, &device_cont);
@@ -281,10 +277,6 @@ int bc_virtual (const graph_virtual *g, float *bc) {
   bc_virtual_clean(&device_vmap, &device_voutgoing_starts, &device_outgoing_edges, 
       &device_d, &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
 
-#ifdef DEBUG
-  float total_time = CycleTimer::currentSeconds() - start_time;
-  std::cout << "\ttotal time for gpu_bc_node_virtual: " << total_time << std::endl;
-#endif
   return 0;
 }
 
@@ -357,9 +349,6 @@ int bc_virtual_stride (const graph_virtual *g, float *bc) {
   int num_nodes = g->num_nodes;
   int num_vnodes = g->num_vnodes;
 
-#ifdef DEBUG
-  float start_time = CycleTimer::currentSeconds();
-#endif
 
   bc_virtual_stride_setup(g, &device_vmap, &device_outgoing_edges, 
       &device_outgoing_starts, &device_offset, &device_nvir, &device_d, 
@@ -415,10 +404,6 @@ int bc_virtual_stride (const graph_virtual *g, float *bc) {
       &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
   
   
-#ifdef DEBUG
-  float total_time = CycleTimer::currentSeconds() - start_time;
-  std::cout << "\ttotal time for gpu_bc_node_virutal_stride: " << total_time << std::endl;
-#endif
   return 0;
 }
 

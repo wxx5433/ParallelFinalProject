@@ -116,9 +116,8 @@ int main(int argc, char** argv) {
     // order graph
     printf("pre order reaches here\n"); 
     order_graph (starts, edges, weight, bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
-    //printf("here?\n");
 
-    //// construct list for gpu_edge
+    ////// construct list for gpu_edge
     //int* list = (int*) malloc(sizeof(int) * nz);
     //for(int i = 0; i < n; i++) {
         //for(int j = starts[i]; j < starts[i+1]; j++) {
@@ -126,29 +125,10 @@ int main(int argc, char** argv) {
         //}
     //}
 
-    //printf("here?\n");
-    //float* bc = (float*)malloc(sizeof(float) * g.num_nodes);
-    //double begin = CycleTimer::currentSeconds();
-    //bc_edge (list, edges, n, nz, n, bc); 
-    //double end = CycleTimer::currentSeconds();
-    //printf("bc_edge_deg1_ord takes %f s\n", end-begin);
-    //std::vector<float> bc_cpu_sequential = compute_bc(&g);
-    //print_solution(bc, n);
-    
-    //printf("bc edge done\n");
-    //[>for (int i = 0; i < n; i++) {
-      //printf("bc score for node %d: %f\n", i, bc[i]);
-    //}*/
-    free(bc);
-    free(degs);
-    free(tadj);
-    free(map_for_order);
-    free(reverse_map_for_order);
-    free(weight);
-
     // build new graph
     graph_virtual g_v;
     build_virtual_graph(starts, edges, n, nz, &g_v);
+    //build_virtual_graph(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, &g_v);
     //print_graph_virtual(&g_v);
     printf("\n");
     printf("Graph stats:\n");
@@ -160,14 +140,19 @@ int main(int argc, char** argv) {
     float start_time = CycleTimer::currentSeconds();
     float *bc_1 = (float*)malloc(sizeof(float) * g.num_nodes);
     bc_cpu(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, bc_1);
-    print_solution(bc_1, g.num_nodes);
-    free(bc_1);
     float total_time = CycleTimer::currentSeconds() - start_time;
     std::cout << "\ttotal time for cpu_seq: " << total_time << std::endl;
+    print_solution(bc_1, g.num_nodes);
+    free(bc_1);
 
     // openmp
-    std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
-    print_solution(&bc_cpu_openmp[0], g.num_nodes);
+    start_time = CycleTimer::currentSeconds();
+    bc_1 = (float*)malloc(sizeof(float) * g.num_nodes);
+    bc_cpu_openmp(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, bc_1);
+    total_time = CycleTimer::currentSeconds() - start_time;
+    std::cout << "\ttotal time for cpu_openmp: " << total_time << std::endl;
+    print_solution(bc_1, g.num_nodes);
+    free(bc_1);
 
     // edge
     bc_1 = (float*)malloc(sizeof(float) * g.num_nodes);
@@ -178,26 +163,46 @@ int main(int argc, char** argv) {
     print_solution(bc_1, g.num_nodes);
 
     // node
-    printf("bc_node\n");
+    start_time = CycleTimer::currentSeconds();
     bc_1 = (float*)malloc(sizeof(float) * g.num_nodes);
     gpu_bc_node(&g, bc_1);
+    total_time = CycleTimer::currentSeconds() - start_time;
+    std::cout << "\ttotal time for node: " << total_time << std::endl;
     print_solution(bc_1, g.num_nodes);
     free(bc_1);
 
     // virtual + deg1
-    printf("bc_virtual_deg1\n");
+    start_time = CycleTimer::currentSeconds();
     float *bc_2 = (float*)malloc(sizeof(float) * g.num_nodes);
+    memcpy(bc_2, bc, sizeof(float) * g.num_nodes);
     bc_virtual(&g_v, bc_2);
+    total_time = CycleTimer::currentSeconds() - start_time;
+    std::cout << "\ttotal time for virtual+deg1: " << total_time << std::endl;
     print_solution(bc_2, g.num_nodes);
     free(bc_2);
 
     // virual stride + deg1
-    printf("bc_virtual_stride_deg1\n");
+    start_time = CycleTimer::currentSeconds();
     float *bc_3 = (float*)malloc(sizeof(float) * g.num_nodes);
+    memcpy(bc_3, bc, sizeof(float) * g.num_nodes);
     bc_virtual_stride(&g_v, bc_3);
+    total_time = CycleTimer::currentSeconds() - start_time;
+    std::cout << "\ttotal time for virtual+stride+deg1: " << total_time << std::endl;
     print_solution(bc_3, g.num_nodes);
     free(bc_3);
 
+    //printf("bc_virtual_stride\n");
+    //float *bc_3 = (float*)malloc(sizeof(float) * g.num_nodes);
+    //bc_virtual_stride(&g_v, bc_3);
+    //print_solution(bc_3, g.num_nodes);
+    //free(bc_3);
+
+    free(bc);
+    free(degs);
+    free(tadj);
+    free(map_for_order);
+    free(reverse_map_for_order);
+    free(weight);
     free(g.outgoing_starts);
     free(g.outgoing_edges);
     free(g_v.vmap);
