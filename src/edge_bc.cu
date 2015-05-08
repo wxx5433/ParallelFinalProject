@@ -142,14 +142,14 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
     double end = CycleTimer::currentSeconds();
     printf("Edge parallel computation takes %f s\n", end - begin);
     checkCudaErrors(cudaMemcpy(bc, d_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost));
-    cudaFree(d_v); 
-    cudaFree(d_e);
-    cudaFree(d_d);
-    cudaFree(d_sigma);
-    cudaFree(d_delta);
-    cudaFree(d_dist);
-    cudaFree(d_bc);
-    cudaFree(done);
+    checkCudaErrors(cudaFree(d_v)); 
+    checkCudaErrors(cudaFree(d_e));
+    checkCudaErrors(cudaFree(d_d));
+    checkCudaErrors(cudaFree(d_sigma));
+    checkCudaErrors(cudaFree(d_delta));
+    checkCudaErrors(cudaFree(d_dist));
+    checkCudaErrors(cudaFree(d_bc));
+    checkCudaErrors(cudaFree(done));
     return 0;
 }
 
