@@ -8,6 +8,7 @@
 #include "CycleTimer.h"
 #include <cuda.h>
 #include "utils.h"
+#include "edge_bc.h"
 #define THRESHOLD 256
 
 using namespace std;
@@ -40,6 +41,7 @@ __global__ void backward_edge (int *d_v, int *d_e, int *d_d, int *d_sigma, float
             int w = d_e[tid];
             if(d_d[w] == *d_dist) {
                 atomicAdd(&d_delta[u], 1.0f*d_sigma[u]/d_sigma[w]*(1.0f+d_delta[w]));
+                //printf("updated node %d 's delta value to %f\n", u, d_delta[u]);
             }
         }
     }
@@ -112,7 +114,8 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
     num_blocks2.x = blocks2;
     num_blocks2.y = blocks2;
     dim3 threadsPerBlock2(threads_per_block2);
-
+    
+    double begin = CycleTimer::currentSeconds();
     for (int i = 0; i < min(nb, num_nodes); ++i) {
         h_dist = 0;
         init_edge<<<num_blocks, threadsPerBlock>>>(i, d_d, d_sigma, num_nodes, d_dist);
@@ -122,18 +125,22 @@ int bc_edge (int* v, int* e, int num_nodes, int num_edges, int nb, float* bc) {
             forward_edge <<<num_blocks, threadsPerBlock>>>(d_v, d_e, d_d, d_sigma, done, d_dist, num_edges);
             set_edge<<<1, 1>>>(d_dist, ++h_dist);
             checkCudaErrors(cudaMemcpy(&h_done, done, sizeof(bool), cudaMemcpyDeviceToHost));
-        } while (!done);
+        } while (!h_done);
         // backward propagation
         checkCudaErrors(cudaMemset(d_delta, 0, sizeof(int) * num_nodes));
+        //printf("forward done successfully\n");
         set_edge<<<1, 1>>>(d_dist, --h_dist);
         while (h_dist > 1) {
             backward_edge <<<num_blocks, threadsPerBlock>>>(d_v, d_e, d_d, d_sigma, d_delta, d_dist, num_edges);
             cudaThreadSynchronize();
             set_edge<<<1, 1>>>(d_dist, --h_dist);
         }
+        
         backsum_edge <<<num_blocks2, threadsPerBlock2>>>(i, d_d,  d_delta, d_bc, num_nodes);
         cudaThreadSynchronize();
     }
+    double end = CycleTimer::currentSeconds();
+    printf("Edge parallel computation takes %f s\n", end - begin);
     checkCudaErrors(cudaMemcpy(bc, d_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost));
     cudaFree(d_v); 
     cudaFree(d_e);

@@ -40,7 +40,7 @@ __global__ void degree1_kernel (int* v, int* e, int* d_tadj, int n, float* d_bc,
         if (d_degree[tid] == 1) {
             int i, vertex, end, remwght;
             *d_continue = true;
-            d_degrees[tid] = 0;
+            d_degree[tid] = 0;
             end = v[tid + 1];
             //for all neighbors of node tid
             for (i = v[tid]; i < end; ++i) {
@@ -53,7 +53,7 @@ __global__ void degree1_kernel (int* v, int* e, int* d_tadj, int n, float* d_bc,
 
                     atomicAdd(d_bc + vertex, d_weight[tid] * (remwght - 1));
                     atomicAdd(d_weight + vertex, d_weight[tid]);
-                    atomicAdd(d_degrees + vertex, -1);
+                    atomicAdd(d_degree + vertex, -1);
                     break;
                 }
             }
@@ -89,8 +89,8 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
     int threads_per_block = n;
     int blocks = 1;
     if(n > 256){
-        blocks = (int)ceil(n / (float)MTS);
-        threads_per_block = MTS;
+        blocks = (int)ceil(n / (float)256);
+        threads_per_block = 256;
     }
     dim3 grid(blocks);
     dim3 threads(threads_per_block);
