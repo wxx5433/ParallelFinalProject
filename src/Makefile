@@ -2,15 +2,15 @@ EXECUTABLE := betweenness_centrality
 
 CU_FILES   := gpu_bc_node.cu gpu_bc_node_virtual.cu
 
-CC_FILES   := main.cpp graph.cpp graph_virtual.cpp cpu_bc.cpp 
+CC_FILES   := main.cpp graph.cpp cpu_bc.cpp 
 
 LOGS	   := logs
 
 ARCH=$(shell uname | sed -e 's/-.*//g')
 OBJDIR=objs
 CXX=g++ -m64
-CXXFLAGS=-O3 -Wall -g -fopenmp
-#CXXFLAGS=-O0 -Wall -g -fopenmp
+#CXXFLAGS=-O3 -Wall -g -fopenmp
+CXXFLAGS=-O0 -Wall -g -fopenmp
 
 LIBS       :=
 FRAMEWORKS := 
@@ -32,7 +32,7 @@ LDFRAMEWORKS := $(addprefix -framework , $(FRAMEWORKS))
 
 NVCC=nvcc
 
-OBJS=$(OBJDIR)/main.o $(OBJDIR)/graph.o $(OBJDIR)/graph_virtual.o $(OBJDIR)/cpu_bc.o \
+OBJS=$(OBJDIR)/main.o $(OBJDIR)/graph.o $(OBJDIR)/cpu_bc.o \
      $(OBJDIR)/gpu_bc_node.o $(OBJDIR)/gpu_bc_node_virtual.o
 
 .PHONY: dirs clean
