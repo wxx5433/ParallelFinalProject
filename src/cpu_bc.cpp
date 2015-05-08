@@ -88,6 +88,78 @@ std::vector<float> compute_bc(graph *g) {
   return bc;
 }
 
+void bc_cpu (int* xadj, int* adj, int nVtx, int nz, float* bc) {
+
+  for (int i = 0; i < nVtx; i++)
+    bc[i] = 0.;
+
+  int* bfsorder = new int[nVtx];
+  int* Pred = new int[xadj[nVtx]];
+  int* endpred = new int[nVtx];
+  int* level = new int[nVtx];
+  int* sigma = new int[nVtx];
+  float* delta = new float[nVtx];
+
+  for (int source = 0; source < nVtx; source++) {
+    int endofbfsorder = 1;
+    bfsorder[0] = source;
+
+    for (int i = 0; i < nVtx; i++)
+      endpred[i] = xadj[i];
+
+    for (int i = 0; i < nVtx; i++)
+      level[i] = -2;
+    level[source] = 0;
+
+    for (int i = 0; i < nVtx; i++)
+      sigma[i] = 0;
+    sigma[source] = 1;
+
+    //step 1: build shortest path graph
+    int cur = 0;
+    while (cur != endofbfsorder) {
+      int v = bfsorder[cur];
+      for (int j = xadj[v]; j < xadj[v+1]; j++) {
+        int w = adj[j];
+        if (level[w] < 0) {
+          level[w] = level[v]+1;
+          bfsorder[endofbfsorder++] = w;
+        }
+        if (level[w] == level[v]+1) {
+          sigma[w] += sigma[v];
+          //assert (sigma[w] > 0); //check for overflow
+          //assert (isfinite(sigma[w]));
+        }
+        else if (level[w] == level[v] - 1) {
+          Pred[endpred[v]++] = w;
+        }
+      }
+      cur++;
+    }
+
+    for (int i = 0; i < nVtx; i++) {
+      delta[i] = 0.;
+    }
+
+    //step 2: compute betweenness
+    for (int i = endofbfsorder - 1; i > 0; i--) {
+      int w = bfsorder[i];
+      for (int j = xadj[w]; j < endpred[w]; j++) {
+        int v = Pred[j];
+        delta[v] += (sigma[v] * (1 + delta[w])) / sigma[w];
+      }
+      bc[w] += delta[w];
+    }
+  }
+
+  delete[] bfsorder;
+  delete[] Pred;
+  delete[] level;
+  delete[] sigma;
+  delete[] delta;
+  delete[] endpred;
+}
+
 void backward_propagation_openmp(graph *g, int src_node, int distance,
     const std::vector<int> &d, const std::vector<int> &sigma, 
     std::vector<float> &bc) {
