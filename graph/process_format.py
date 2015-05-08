@@ -5,10 +5,10 @@ global_tgt_list = list()
 
 def getMaxID():
     line = sys.stdin.readline()
-    fields = line.strip().split(" ")
-    maxID = max(int(fields[0]), int(fields[1]))
+    fields = line.strip().split("\t")
+    maxID = int(fields[0])
     print maxID
-    print fields[2]
+    print fields[1]
     return maxID
 
 def printStarts(maxID):
