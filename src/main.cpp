@@ -68,8 +68,24 @@ int main(int argc, char** argv) {
 
     int* starts = g.outgoing_starts;
     int* edges = g.outgoing_edges;
-    
-    //init();
+    int* degs = (int*)malloc(sizeof(int) * n);
+    int* tadj = (int*)malloc(sizeof(int) * nz);
+
+   
+
+
+    memcpy(degs, starts, sizeof(int) * n);
+	for(int i = 0; i < n; i++) {
+		for(int ptr = starts[i]; ptr < starts[i+1]; ptr++) {
+			int j = edges[ptr];
+			if(i < j) {
+				tadj[ptr] = degs[j];
+				tadj[degs[j]++] = ptr;
+			}
+		}
+	}
+    //printf("im here\n");    
+    init();
     FILE* ofp;
     ofp = fopen("bc_out.txt", "w");   
     int* map_for_order = (int *) malloc(n * sizeof(int));
@@ -82,29 +98,45 @@ int main(int argc, char** argv) {
         reverse_map_for_order[i] = -1;
     }
 
-    //printf("reaches here\n");
-    preprocess (starts, edges, &n, bc, weight, map_for_order, reverse_map_for_order, ofp);
-    //nz = starts[n];
+    printf("prepro reaches here\n");
+    preprocess (starts, edges, tadj, &n, bc, weight, map_for_order, reverse_map_for_order, ofp);
+    nz = starts[n];
     
-    //printf("reaches here\n"); 
+    printf("pre order reaches here\n"); 
     order_graph (starts, edges, weight, bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
-
-    int* list = (int*) malloc(sizeof(int) * g.num_edges);
-    for(int i = 0; i < g.num_nodes; i++) {
+    //printf("here?\n");
+    int* list = (int*) malloc(sizeof(int) * nz);
+    for(int i = 0; i < n; i++) {
         for(int j = starts[i]; j < starts[i+1]; j++) {
             list[j] = i;
         }
     }
-   
+    //printf("here?\n");
     //float* bc = (float*)malloc(sizeof(float) * g.num_nodes);
-    
-    bc_edge (list, edges, g.num_nodes, g.num_edges, g.num_nodes, bc); 
+    double begin = CycleTimer::currentSeconds();
+    bc_edge (list, edges, n, nz, n, bc); 
+    double end = CycleTimer::currentSeconds();
+    printf("bc_edge_deg1_ord takes %f s\n", end-begin);
     //std::vector<float> bc_cpu_sequential = compute_bc(&g);
-    //print_solution(&bc_cpu_sequential[0], g.num_nodes);
-     
-    //free(bc);
-    //std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
+    //print_solution(bc, n);
+    
+    printf("bc edge done\n");
+    /*for (int i = 0; i < n; i++) {
+      printf("bc score for node %d: %f\n", i, bc[i]);
+    }*/
+    free(bc);
+    free(degs);
+    free(tadj);
+    free(map_for_order);
+    free(reverse_map_for_order);
+    free(weight);
+    
+    /*begin = CycleTimer::currentSeconds();
+    std::vector<float> bc_cpu_openmp = compute_bc_openmp(&g);
+    end = CycleTimer::currentSeconds();
+    printf("openmp takes %f s\n", end-begin);*/
     //print_solution(&bc_cpu_openmp[0], g.num_nodes);
+
 
     //float *bc = (float*)malloc(sizeof(float) * g.num_nodes);
     //gpu_bc_node(&g, bc);
@@ -139,23 +171,17 @@ int main(int argc, char** argv) {
     sol2.distances = (int*)malloc(sizeof(int) * g.num_nodes);
     solution sol3;
     sol3.distances = (int*)malloc(sizeof(int) * g.num_nodes);
-
     //Solution sphere
     solution sol4;
     sol4.distances = (int*)malloc(sizeof(int) * g.num_nodes);
-
     double hybrid_time, top_time, bottom_time;
     double ref_hybrid_time, ref_top_time, ref_bottom_time;
-
     double start;
     std::stringstream timing;
     std::stringstream ref_timing;
-
-
 #ifdef USE_HYBRID_FUNCTION
     timing << "Threads  Top Down    Bottom Up   Hybrid\n";
     ref_timing << "Threads  Top Down    Bottom Up   Hybrid\n";
-
 #else
     timing << "Threads  Top Down    Bottom Up\n";
     ref_timing << "Threads  Top Down    Bottom Up\n";
@@ -164,17 +190,14 @@ int main(int argc, char** argv) {
     std::cout << "Running with " << thread_count << " threads" << std::endl;
     //Set thread count
     omp_set_num_threads(thread_count);
-
     //Run implementations
     start = CycleTimer::currentSeconds();
     bfs_top_down(&g, &sol1);
     top_time = CycleTimer::currentSeconds() - start;
-
     //Run reference implementation
     start = CycleTimer::currentSeconds();
     reference_bfs_top_down(&g, &sol4);
     ref_top_time = CycleTimer::currentSeconds() - start;
-
     std::cout << "Testing Correctness of Top Down\n";
     for (int j=0; j<g.num_nodes; j++) {
         if (sol1.distances[j] != sol4.distances[j]) {
@@ -183,18 +206,14 @@ int main(int argc, char** argv) {
             break;
         }
     }
-
-
     //Run implementations
     start = CycleTimer::currentSeconds();
     bfs_bottom_up(&g, &sol2);
     bottom_time = CycleTimer::currentSeconds() - start;
-
     //Run reference implementation
     start = CycleTimer::currentSeconds();
     reference_bfs_bottom_up(&g, &sol4);
     ref_bottom_time = CycleTimer::currentSeconds() - start;
-
     std::cout << "Testing Correctness of Bottom Up\n";
     for (int j=0; j<g.num_nodes; j++) {
         if (sol2.distances[j] != sol4.distances[j]) {
@@ -203,18 +222,14 @@ int main(int argc, char** argv) {
             break;
         }
     }
-
-
 #ifdef USE_HYBRID_FUNCTION
     start = CycleTimer::currentSeconds();
     bfs_hybrid(&g, &sol3);
     hybrid_time = CycleTimer::currentSeconds() - start;
-
     //Run reference implementation
     start = CycleTimer::currentSeconds();
     reference_bfs_hybrid(&g, &sol4);
     ref_hybrid_time = CycleTimer::currentSeconds() - start;
-
     std::cout << "Testing Correctness of Hybrid\n";
     for (int j=0; j<g.num_nodes; j++) {
         if (sol3.distances[j] != sol4.distances[j]) {
@@ -223,24 +238,19 @@ int main(int argc, char** argv) {
             break;
         }
     }
-
 #endif
-
     char buf[1024];
     char ref_buf[1024];
-
 #ifdef USE_HYBRID_FUNCTION
     sprintf(buf, "%4d:     %.4f     %.4f     %.4f\n",
             thread_count, top_time, bottom_time, hybrid_time);
     sprintf(ref_buf, "%4d:     %.4f     %.4f     %.4f\n",
             thread_count, ref_top_time, ref_bottom_time, ref_hybrid_time);
-
 #else
      sprintf(buf, "%4d:     %.4f     %.4f\n",
             thread_count, top_time, bottom_time);
      sprintf(ref_buf, "%4d:     %.4f     %.4f\n",
             thread_count, ref_top_time, ref_bottom_time);
-
 #endif
     timing << buf;
     ref_timing << ref_buf;
