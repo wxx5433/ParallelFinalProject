@@ -109,7 +109,7 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
         h_continue = false;
         cudaMemcpy(d_continue, &h_continue, sizeof(bool), cudaMemcpyHostToDevice);
         degree1_kernel<<<grid, threads>>>(d_xadj, d_adj, d_tadj, n, d_bc, d_weight, d_continue, d_degrees);
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
         cudaError_t error = cudaGetLastError();
         if(error != cudaSuccess){
             printf("CUDA Error: %s\n", cudaGetErrorString(error));
@@ -188,10 +188,10 @@ void init () {
 
 void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount, int deg1, int* map_for_order, int* reverse_map_for_order) {
 
-	int *new_xadj, *new_adj;
+        int *new_xadj, *new_adj;
 
-	new_xadj = (int*) calloc((n + 1), sizeof(int));
-	new_adj = (int*) malloc(sizeof(int) * xadj[n]);
+        new_xadj = (int*) calloc((n + 1), sizeof(int));
+        new_adj = (int*) malloc(sizeof(int) * xadj[n]);
 
 	int* my_map_for_order = (int *) malloc(n * sizeof(int));
 	int* my_reverse_map_for_order = (int *) malloc(n * sizeof(int));
@@ -212,7 +212,7 @@ void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount
 			break;
 		}
 	}
-        printf("order reaches here\n");
+        //printf("order reaches here\n");
 	while (cur != endofbfsorder) {
 		int v = bfsorder[cur];
 		my_reverse_map_for_order[cur] = v;
@@ -226,7 +226,7 @@ void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount
 		}
 		cur++;
 	}
-        printf("order reaches here\n");
+        //printf("order reaches here\n");
 	for (int i = 0; i < n; i++) {
 		if (mark[i] == 0) {
 			my_reverse_map_for_order[cur] = i;
@@ -235,7 +235,7 @@ void order_graph (int* xadj, int* adj, int* weight, float* bc, int n, int vcount
 		}
 	}
 
-printf("hahaha\n");
+//printf("hahaha\n");
 	ptr = 0;
 	for (int i = 0; i < n; i++) {
 		new_xadj[i+1] = new_xadj[i];
