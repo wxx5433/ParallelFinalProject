@@ -26,11 +26,11 @@ void all_preprocess(const graph &g, int **starts, int **edges,
   int* degs = (int*)malloc(sizeof(int) * (n + 1));
   int* tadj = (int*)malloc(sizeof(int) * nz);
 
-  memcpy(starts, g.outgoing_starts, sizeof(int) * (n + 1));
-  memcpy(edges, g.outgoing_edges, sizeof(int) * nz);
+  memcpy(*starts, g.outgoing_starts, sizeof(int) * (n + 1));
+  memcpy(*edges, g.outgoing_edges, sizeof(int) * nz);
 
   // construct tadj
-  memcpy(degs, starts, sizeof(int) * (n + 1));
+  memcpy(degs, *starts, sizeof(int) * (n + 1));
   for(int i = 0; i < n; i++) {
     for(int ptr = *starts[i]; ptr < *starts[i+1]; ptr++) {
       int j = *edges[ptr];
