@@ -179,7 +179,8 @@ __global__ void init_virtual_kernel (int s, int *device_d,
 void bc_virtual_setup(const graph_virtual *g, int **device_vmap, 
     int **device_voutgoing_starts, int **device_outgoing_edges, 
     int **device_d, int **device_sigma, float **device_delta, 
-    int **device_dist, float **device_bc, bool **device_cont) {
+    int **device_dist, float **device_bc, bool **device_cont,
+    float *pre_bc) {
   int num_vnodes = g->num_vnodes;
   int num_nodes = g->num_nodes;
   int num_edges = g->num_edges;
@@ -202,7 +203,7 @@ void bc_virtual_setup(const graph_virtual *g, int **device_vmap,
   cudaMalloc((void **)device_dist, sizeof(int));
 
   cudaMalloc((void **)device_bc, sizeof(float) * num_nodes);
-  cudaMemset(*device_bc, 0, sizeof(float) * num_nodes);
+  cudaMemcpy(*device_bc, pre_bc, sizeof(float) * num_nodes, cudaMemcpyHostToDevice);
 
   cudaMalloc((void **)device_cont, sizeof(bool));
 }
@@ -232,7 +233,7 @@ int bc_virtual (const graph_virtual *g, float *bc) {
 
   bc_virtual_setup(g, &device_vmap, &device_voutgoing_starts, 
       &device_outgoing_edges, &device_d, &device_sigma, 
-      &device_delta, &device_dist, &device_bc, &device_cont);
+      &device_delta, &device_dist, &device_bc, &device_cont, bc);
 
   dim3 blockDim_virtual(THREAD_NUM);
   dim3 gridDim_virtual((num_vnodes + blockDim_virtual.x - 1) / blockDim_virtual.x);
@@ -284,7 +285,7 @@ void bc_virtual_stride_setup(const graph_virtual *g, int **device_vmap,
     int **device_outgoing_edges, int **device_outgoing_starts, 
     int **device_offset, int **device_nvir, int **device_d, 
     int **device_sigma, float **device_delta, int **device_dist, 
-    float **device_bc, bool **device_cont) {
+    float **device_bc, bool **device_cont, float *pre_bc) {
   int num_vnodes = g->num_vnodes;
   int num_nodes = g->num_nodes;
   int num_edges = g->num_edges;
@@ -317,7 +318,7 @@ void bc_virtual_stride_setup(const graph_virtual *g, int **device_vmap,
   cudaMalloc((void **)device_dist, sizeof(int));
 
   cudaMalloc((void **)device_bc, sizeof(float)*num_nodes);
-  cudaMemset(*device_bc, 0, sizeof(float)*num_nodes);
+  cudaMemcpy(*device_bc, pre_bc, sizeof(float) * num_nodes, cudaMemcpyHostToDevice);
 
   cudaMalloc((void **)device_cont, sizeof(bool));
 }
@@ -352,7 +353,7 @@ int bc_virtual_stride (const graph_virtual *g, float *bc) {
 
   bc_virtual_stride_setup(g, &device_vmap, &device_outgoing_edges, 
       &device_outgoing_starts, &device_offset, &device_nvir, &device_d, 
-      &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
+      &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont, bc);
 
 
   dim3 blockDim_virtual(THREAD_NUM);
