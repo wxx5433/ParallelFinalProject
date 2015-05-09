@@ -33,7 +33,7 @@ void all_preprocess(const graph &g, int **starts, int **edges,
   memcpy(degs, *starts, sizeof(int) * (n + 1));
   for(int i = 0; i < n; i++) {
     for(int ptr = (*starts)[i]; ptr < (*starts)[i+1]; ptr++) {
-      int j = *edges[ptr];
+      int j = (*edges)[ptr];
       if(i < j) {
         tadj[ptr] = degs[j];
         tadj[degs[j]++] = ptr;
