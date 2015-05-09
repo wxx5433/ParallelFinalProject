@@ -13,7 +13,7 @@ def getMaxID():
 
 def printStarts(maxID):
     starts = 0
-    ID = 1
+    ID = 0
     for line in sys.stdin:
         fields = line.strip().split("\t")
         src = int(fields[0])
@@ -23,14 +23,14 @@ def printStarts(maxID):
             print starts
             ID += 1
         starts += len(tgt_list)
-    while ID <= maxID:
+    while ID < maxID:
         print starts
         ID += 1
 
 def printEdges():
     for tgt_list in global_tgt_list:
         for tgt in tgt_list:
-            print int(tgt)- 1
+            print int(tgt)
 
 def main():
     print "AdjacencyGraph"
