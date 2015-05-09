@@ -7,7 +7,7 @@ def getMaxID():
     line = sys.stdin.readline()
     fields = line.strip().split("\t")
     maxID = int(fields[0])
-    print maxID
+    print maxID + 1
     print fields[1]
     return maxID
 
