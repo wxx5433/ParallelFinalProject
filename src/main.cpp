@@ -32,7 +32,7 @@ void all_preprocess(const graph &g, int **starts, int **edges,
   // construct tadj
   memcpy(degs, *starts, sizeof(int) * (n + 1));
   for(int i = 0; i < n; i++) {
-    for(int ptr = *starts[i]; ptr < *starts[i+1]; ptr++) {
+    for(int ptr = (*starts)[i]; ptr < (*starts)[i+1]; ptr++) {
       int j = *edges[ptr];
       if(i < j) {
         tadj[ptr] = degs[j];
@@ -59,7 +59,7 @@ void all_preprocess(const graph &g, int **starts, int **edges,
   preprocess (*starts, *edges, tadj, &n, pre_bc, weight, map_for_order, reverse_map_for_order, ofp);
 
   *num_nodes = n;
-  *num_edges = *starts[n];
+  *num_edges = (*starts)[n];
   
   // order graph
   printf("pre order reaches here\n"); 
