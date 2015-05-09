@@ -38,5 +38,7 @@ void load_graph(const char *filename, graph *graph);
 void read_graph_file(std::ifstream& file, int* scratch);
 void build_virtual_graph(const int *outgoing_starts, const int *outgoing_edges, int num_edges, int num_nodes, graph_virtual *g_v);
 void print_graph_virtual(const graph_virtual *graph);
+void print_graph_stats(const graph *g);
+void print_graph_virtual_stats(const graph_virtual *g_v);
 
 #endif
