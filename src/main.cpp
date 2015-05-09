@@ -197,11 +197,13 @@ int main(int argc, char** argv) {
     printf("Loading graph...\n");
     load_graph(argv[1], &g);
     print_graph_stats(&g);
+    //print_graph(&g);
 
     // build virtual graph WITHOUT deg1
     graph_virtual g_v;
     build_virtual_graph(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, &g_v);
     print_graph_virtual_stats(&g_v);
+    //print_graph_virtual(&g_v);
 
     // do preprocess
     float* pre_bc = (float*)malloc(sizeof(float) * g.num_nodes);
@@ -214,37 +216,43 @@ int main(int argc, char** argv) {
     build_virtual_graph(starts, edges, n, nz, &g_v_deg1);
     print_graph_virtual_stats(&g_v_deg1);
 
-    test_cpu_seq(g);
+    //test_cpu_seq(g);
 
     test_cpu_openmp(g);
 
-    test_gpu_node(g);
+    //test_gpu_node(g);
 
-    test_gpu_edge(g);
+    //test_gpu_edge(g);
 
     test_virtual(g_v);
 
     test_virtual_stride(g_v);
 
-    test_virtual_deg1(g_v_deg1, pre_bc);
+    //test_virtual_deg1(g_v_deg1, pre_bc);
 
-    test_virtual_stride_deg1(g_v_deg1, pre_bc);
+    //test_virtual_stride_deg1(g_v_deg1, pre_bc);
 
 
 
     /********************** clean up ***************************/
-    free(pre_bc);
-    free(starts);
-    free(edges);
+    //free(pre_bc);
+    //free(starts);
+    //free(edges);
 
     free(g.outgoing_starts);
     free(g.outgoing_edges);
-    free(g_v_deg1.vmap);
-    free(g_v_deg1.offset);
-    free(g_v_deg1.nvir);
-    free(g_v_deg1.voutgoing_starts);
-    free(g_v_deg1.outgoing_starts);
-    free(g_v_deg1.outgoing_edges);
+    free(g_v.vmap);
+    free(g_v.offset);
+    free(g_v.nvir);
+    free(g_v.voutgoing_starts);
+    free(g_v.outgoing_starts);
+    free(g_v.outgoing_edges);
+    //free(g_v_deg1.vmap);
+    //free(g_v_deg1.offset);
+    //free(g_v_deg1.nvir);
+    //free(g_v_deg1.voutgoing_starts);
+    //free(g_v_deg1.outgoing_starts);
+    //free(g_v_deg1.outgoing_edges);
 
     return 0;
 }

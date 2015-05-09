@@ -129,8 +129,8 @@ void setup(const graph *g, int **outgoing_starts, int **outgoing_edges,
   cudaMalloc((void **)d_cont, sizeof(bool));
 }
 
-void clean(int **outgoing_starts, int **outgoing_edges, int **d, 
-    int **sigma, float **delta, int **dist, float **bc, bool **d_cont) {
+void clean(int *outgoing_starts, int *outgoing_edges, int *d, 
+    int *sigma, float *delta, int *dist, float *bc, bool *d_cont) {
   cudaFree(outgoing_starts);
   cudaFree(outgoing_edges);
   cudaFree(d);
@@ -170,7 +170,6 @@ int gpu_bc_node (const graph *g, float *bc) {
       cudaMemcpy(&cont, device_cont, sizeof(bool), cudaMemcpyDeviceToHost);
     } while (cont);
 
-
     //Back propagation
     cudaMemset(device_delta, 0, sizeof(int) * num_nodes);
     cudaMemcpy(device_dist, &(--distance), sizeof(int), cudaMemcpyHostToDevice);
@@ -187,127 +186,8 @@ int gpu_bc_node (const graph *g, float *bc) {
 
   cudaMemcpy(bc, device_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost);
 
-  clean(&device_outgoing_starts, &device_outgoing_edges, &device_d, 
-      &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont);
+  clean(device_outgoing_starts, device_outgoing_edges, device_d, 
+      device_sigma, device_delta, device_dist, device_bc, device_cont);
 
   return 0;
 }
-/*
-int bc_vertex_deg1 (int *h_ptrs, int* h_js, int num_nodes, int num_edges, int nb, float *bc, int* h_weight) {
-
-	int *device_outgoing_starts, *device_outgoing_edges, *device_d, *device_sigma, *device_dist, distance, *d_weight;
-	float *device_delta, *device_bc;
-	bool h_continue, *device_continue;
-
-	cudaMalloc((void **)&device_outgoing_starts, sizeof(int) * (num_nodes + 1));
-	cudaMalloc((void **)&device_outgoing_edges, sizeof(int) * num_edges);
-
-	cudaMemcpy(device_outgoing_starts, h_ptrs, sizeof(int) * (num_nodes+1), cudaMemcpyHostToDevice); // xadj array
-	cudaMemcpy(device_outgoing_edges, h_js, sizeof(int) * num_edges, cudaMemcpyHostToDevice); // adj array
-
-	cudaMalloc((void **)&device_d, sizeof(int) * num_nodes);
-
-	cudaMalloc((void **)&device_sigma, sizeof(int) * num_nodes);
-	cudaMalloc((void **)&device_delta, sizeof(float) * num_nodes);
-	cudaMalloc((void **)&d_weight, sizeof(int) * num_nodes);
-	cudaMemcpy(d_weight, h_weight, sizeof(int) * num_nodes, cudaMemcpyHostToDevice); // weight array
-	cudaMalloc((void **)&device_dist, sizeof(int));
-
-	cudaMalloc((void **)&device_bc, sizeof(float) * num_nodes);
-	cudaMemcpy(device_bc, bc, sizeof(int) * num_nodes, cudaMemcpyHostToDevice); // bc array
-
-	cudaMalloc((void **)&device_continue, sizeof(bool));
-
-	int threads_per_block = num_nodes;
-	int blocks = 1;
-	if(num_nodes > MTS){
-		blocks = (int)ceil(num_nodes/(double)MTS);
-		threads_per_block = MTS;
-	}
-
-	dim3 grid(blocks);
-	dim3 threads(threads_per_block);
-
-
-#ifdef TIMER
-	struct timeval t1, t2, gt1, gt2; double time;
-#endif
-
-	for(int i = 0; i < min (nb, num_nodes); i++){
-#ifdef TIMER
-		gettimeofday(&t1, 0);
-#endif
-
-		distance = 0;
-		init_params_kernel<<<grid,threads>>>(i, device_d, device_sigma, num_nodes, device_dist);
-
-#ifdef TIMER
-		gettimeofday(&t2, 0);
-		time = (1000000.0*(t2.tv_sec-t1.tv_sec) + t2.tv_usec-t1.tv_usec)/1000000.0;
-		cout << "initialization takes " << time << " secs\n";
-		gettimeofday(&gt1, 0);
-#endif
-
-		// BFS
-		do{
-#ifdef TIMER
-			gettimeofday(&t1, 0);
-#endif
-
-			cudaMemset(device_continue, 0, sizeof(bool));
-			forward_kernel<<<grid,threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_continue, device_dist, num_nodes);
-			cudaThreadSynchronize();
-			set_int_vertex<<<1,1>>>(device_dist, ++distance);
-			cudaMemcpy(&h_continue, device_continue, sizeof(bool), cudaMemcpyDeviceToHost);
-
-#ifdef TIMER
-			gettimeofday(&t2, 0);
-			time = (1000000.0*(t2.tv_sec-t1.tv_sec) + t2.tv_usec-t1.tv_usec)/1000000.0;
-			cout << "level " << distance << " takes " << time << " secs\n";
-#endif
-
-		} while(h_continue);
-
-#ifdef TIMER
-		gettimeofday(&gt2, 0);
-		time = (1000000.0*(gt2.tv_sec-gt1.tv_sec) + gt2.tv_usec-gt1.tv_usec)/1000000.0;
-		cout << "Phase 1 takes " << time << " secs\n";
-		gettimeofday(&gt1, 0); // starts back propagation
-#endif
-
-		//Back propagation
-
-		init_delta<<<grid, threads>>>(d_weight, device_delta, num_nodes); // deltas are initialized
-		set_int_vertex<<<1,1>>>(device_dist, --distance);
-		while(distance > 1) {
-			backward_kernel<<<grid, threads>>>(device_outgoing_starts, device_outgoing_edges, device_d, device_sigma, device_delta, device_bc, device_dist, num_nodes);
-			cudaThreadSynchronize();
-			set_int_vertex<<<1,1>>>(device_dist, --distance);
-		}
-
-
-		compute_bc_kernel_deg1<<<grid, threads>>>(i, device_d, device_delta, device_bc, num_nodes, d_weight);
-		cudaThreadSynchronize();
-
-#ifdef TIMER
-		gettimeofday(&gt2, 0);
-		time = (1000000.0*(gt2.tv_sec-gt1.tv_sec) + gt2.tv_usec-gt1.tv_usec)/1000000.0;
-		cout << "Phase 2 takes " << time << " secs\n";
-#endif
-
-	}
-
-	cudaMemcpy(bc, device_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost);
-	cudaFree(device_outgoing_starts);
-	cudaFree(device_outgoing_edges);
-	cudaFree(device_d);
-	cudaFree(device_sigma);
-	cudaFree(device_delta);
-	cudaFree(device_dist);
-	cudaFree(device_bc);
-	cudaFree(device_continue);
-
-
-	return 0;
-}
-*/

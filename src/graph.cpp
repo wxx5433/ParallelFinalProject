@@ -61,7 +61,7 @@ void build_virtual_graph(const int *outgoing_starts, const int *outgoing_edges,
   g_v->num_vnodes = num_vnodes;
   offset[num_vnodes] = num_edges;
   vmap[num_vnodes] = num_nodes;
-  voutgoing_starts[num_vnodes] = num_nodes;
+  voutgoing_starts[num_vnodes] = num_edges;
 
   g_v->vmap = (int*)malloc(sizeof(int) * (num_vnodes + 1));
   g_v->offset = (int*)malloc(sizeof(int) * (num_vnodes + 1));
