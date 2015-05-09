@@ -32,8 +32,12 @@ void build_virtual_graph(const int *outgoing_starts, const int *outgoing_edges,
   g_v->outgoing_starts = (int*)malloc(sizeof(int) * (num_nodes + 1));
   g_v->outgoing_edges = (int*)malloc(sizeof(int) * num_edges);
 
-  memcpy(g_v->outgoing_starts, outgoing_starts, sizeof(int) * (num_nodes + 1));
-  memcpy(g_v->outgoing_edges, outgoing_edges, sizeof(int) * num_edges);
+  for (int i = 0; i <= num_nodes; ++i) {
+    g_v->outgoing_starts[i] = outgoing_starts[i];
+  }
+  for (int i = 0; i < num_edges; ++i) {
+    g_v->outgoing_edges[i] = outgoing_edges[i];
+  }
 
   vmap.push_back(0);
   offset.push_back(0);
