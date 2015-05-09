@@ -153,14 +153,14 @@ void test_virtual(const graph_virtual &g_v) {
   free(bc);
 }
 
-void test_virtual_deg1(const graph_virtual &g_v, const float *pre_bc) {
+void test_virtual_deg1(const graph_virtual &g_v, const float *pre_bc, int num_nodes) {
   double start_time = CycleTimer::currentSeconds();
-  float *bc = (float*)calloc(sizeof(float), g_v.num_nodes);
-  memcpy(bc, pre_bc, sizeof(float) * g_v.num_nodes);
+  float *bc = (float*)calloc(sizeof(float), num_nodes);
+  memcpy(bc, pre_bc, sizeof(float) * num_nodes);
   bc_virtual(&g_v, bc);
   double total_time = CycleTimer::currentSeconds() - start_time;
   std::cout << "\ttotal time for virtual+deg1: " << total_time << std::endl;
-  print_solution(bc, g_v.num_nodes);
+  print_solution(bc, num_nodes);
   free(bc);
 }
 
@@ -175,15 +175,15 @@ void test_virtual_stride(const graph_virtual &g_v) {
   free(bc);
 }
 
-void test_virtual_stride_deg1(const graph_virtual &g_v, const float *pre_bc) {
+void test_virtual_stride_deg1(const graph_virtual &g_v, const float *pre_bc, int num_nodes) {
   // virual stride + deg1
   double start_time = CycleTimer::currentSeconds();
-  float *bc = (float*)calloc(sizeof(float), g_v.num_nodes);
-  memcpy(bc, pre_bc, sizeof(float) * g_v.num_nodes);
+  float *bc = (float*)calloc(sizeof(float), num_nodes);
+  memcpy(bc, pre_bc, sizeof(float) * num_nodes);
   bc_virtual_stride(&g_v, bc);
   double total_time = CycleTimer::currentSeconds() - start_time;
   std::cout << "\ttotal time for virtual+stride+deg1: " << total_time << std::endl;
-  print_solution(bc, g_v.num_nodes);
+  print_solution(bc, num_nodes);
   free(bc);
 }
 
@@ -226,9 +226,9 @@ int main(int argc, char** argv) {
 
     //test_virtual(g_v);
 
-    test_virtual_stride(g_v);
+    //test_virtual_stride(g_v);
 
-    //test_virtual_deg1(g_v_deg1, pre_bc);
+    test_virtual_deg1(g_v_deg1, pre_bc, g.num_nodes);
 
     //test_virtual_stride_deg1(g_v_deg1, pre_bc);
 
