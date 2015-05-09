@@ -16,24 +16,24 @@
 
 #define USE_BINARY_GRAPH 0
 
-void all_preprocess(const graph &g, int *starts, int *edges, 
+void all_preprocess(const graph &g, int **starts, int **edges, 
     int *num_nodes, int *num_edges, float *pre_bc) {
   int n = g.num_nodes;
   int nz = g.num_edges;
 
-  starts = (int*)malloc(sizeof(int) * (n + 1));
-  edges = (int*)malloc(sizeof(int) * nz);
+  *starts = (int*)malloc(sizeof(int) * (n + 1));
+  *edges = (int*)malloc(sizeof(int) * nz);
   int* degs = (int*)malloc(sizeof(int) * (n + 1));
   int* tadj = (int*)malloc(sizeof(int) * nz);
 
-  memcpy(starts, g.outgoing_starts, sizeof(int) * (n + 1));
-  memcpy(edges, g.outgoing_edges, sizeof(int) * nz);
+  memcpy(*starts, g.outgoing_starts, sizeof(int) * (n + 1));
+  memcpy(*edges, g.outgoing_edges, sizeof(int) * nz);
 
   // construct tadj
-  memcpy(degs, starts, sizeof(int) * (n + 1));
+  memcpy(degs, *starts, sizeof(int) * (n + 1));
   for(int i = 0; i < n; i++) {
-    for(int ptr = starts[i]; ptr < starts[i+1]; ptr++) {
-      int j = edges[ptr];
+    for(int ptr = (*starts)[i]; ptr < (*starts)[i+1]; ptr++) {
+      int j = (*edges)[ptr];
       if(i < j) {
         tadj[ptr] = degs[j];
         tadj[degs[j]++] = ptr;
@@ -56,14 +56,14 @@ void all_preprocess(const graph &g, int *starts, int *edges,
 
   // preprocess to remove deg1 vertex
   printf("prepro reaches here\n");
-  preprocess (starts, edges, tadj, &n, pre_bc, weight, map_for_order, reverse_map_for_order, ofp);
+  preprocess (*starts, *edges, tadj, &n, pre_bc, weight, map_for_order, reverse_map_for_order, ofp);
 
   *num_nodes = n;
-  *num_edges = starts[n];
+  *num_edges = (*starts)[n];
   
   // order graph
   printf("pre order reaches here\n"); 
-  order_graph (starts, edges, weight, pre_bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
+  order_graph (*starts, *edges, weight, pre_bc, n, g.num_nodes, 1, map_for_order, reverse_map_for_order);
   
   free(degs);
   free(tadj);
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
     float* pre_bc = (float*)malloc(sizeof(float) * g.num_nodes);
     int *starts = NULL, *edges = NULL;
     int n = g.num_nodes, nz = g.num_edges;
-    all_preprocess(g, starts, edges, &n, &nz, pre_bc);
+    all_preprocess(g, &starts, &edges, &n, &nz, pre_bc);
 
     // build deg1 virtual graph 
     graph_virtual g_v_deg1;

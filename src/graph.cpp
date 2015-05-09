@@ -2,8 +2,10 @@
 #include <string.h>
 
 void build_start(graph *graph, int *scratch) {
-  graph->outgoing_starts = (int*)malloc(sizeof(int) * graph->num_nodes + 1);
-  memcpy(graph->outgoing_starts, scratch, sizeof(int) * graph->num_nodes);
+  graph->outgoing_starts = (int*)malloc(sizeof(int) * (graph->num_nodes + 1));
+  for (int i = 0; i < graph->num_nodes; ++i) {
+    graph->outgoing_starts[i] = scratch[i];
+  }
   graph->outgoing_starts[graph->num_nodes] = graph->num_edges;
 }
 
@@ -11,7 +13,9 @@ void build_edges(graph *graph, int *scratch) {
   int num_nodes = graph->num_nodes;
 
   graph->outgoing_edges = (int*)malloc(sizeof(int) * graph->num_edges);
-  memcpy(graph->outgoing_edges, scratch + num_nodes, sizeof(int) * graph->num_edges);
+  for (int i = 0; i < graph->num_edges; ++i) {
+    graph->outgoing_edges[i] = scratch[num_nodes + i];
+  }
 }
 
 void build_virtual_graph(const int *outgoing_starts, const int *outgoing_edges, 
@@ -28,8 +32,12 @@ void build_virtual_graph(const int *outgoing_starts, const int *outgoing_edges,
   g_v->outgoing_starts = (int*)malloc(sizeof(int) * (num_nodes + 1));
   g_v->outgoing_edges = (int*)malloc(sizeof(int) * num_edges);
 
-  memcpy(g_v->outgoing_starts, outgoing_starts, sizeof(int) * (num_nodes + 1));
-  memcpy(g_v->outgoing_edges, outgoing_edges, sizeof(int) * num_edges);
+  for (int i = 0; i <= num_nodes; ++i) {
+    g_v->outgoing_starts[i] = outgoing_starts[i];
+  }
+  for (int i = 0; i < num_edges; ++i) {
+    g_v->outgoing_edges[i] = outgoing_edges[i];
+  }
 
   vmap.push_back(0);
   offset.push_back(0);
