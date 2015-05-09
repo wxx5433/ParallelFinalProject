@@ -6,16 +6,16 @@
 
 using namespace std;
 
-/*int *device_vmap, *device_voutgoing_starts, *device_outgoing_edges, *device_d, *device_sigma, *device_dist, dist;*/
-/*float *device_delta, *device_bc;*/
-/*int* device_weight;*/
-/*bool *device_cont;*/
-/*dim3 grid, threads, grid2, threads2;*/
+int *device_vmap, *device_outgoing_starts, *device_outgoing_edges;
+int *device_d, *device_sigma, *device_dist;
+int *device_offset, *device_nvir;
+float *device_delta, *device_bc;
+bool *device_cont;
+dim3 blockDim_virtual;
+dim3 gridDim_virtual;
 
-//for deg1 coalesced
-/*int *device_xadj;*/
-/*int *device_offset;*/
-/*int *device_nvir;*/
+dim3 blockDim1;
+dim3 gridDim1;
 
 __global__ void forward_virtual_kernel (int* device_vmap, 
     int* device_voutgoing_starts, int* device_outgoing_edges, 
@@ -278,52 +278,45 @@ int bc_virtual (const graph_virtual *g, float *bc) {
   return 0;
 }
 
-void bc_virtual_stride_setup(const graph_virtual *g, int **device_vmap, 
-    int **device_outgoing_edges, int **device_outgoing_starts, 
-    int **device_offset, int **device_nvir, int **device_d, 
-    int **device_sigma, float **device_delta, int **device_dist, 
-    float **device_bc, bool **device_cont, float *pre_bc) {
+void bc_virtual_stride_setup(const graph_virtual *g, float *pre_bc) {
   int num_vnodes = g->num_vnodes;
   int num_nodes = g->num_nodes;
   int num_edges = g->num_edges;
 
-  cudaMalloc((void **)device_vmap, sizeof(int) *  num_vnodes);
-  cudaMemcpy(*device_vmap, g->vmap, 
+  cudaMalloc((void **)&device_vmap, sizeof(int) *  num_vnodes);
+  cudaMemcpy(device_vmap, g->vmap, 
       sizeof(int) * num_vnodes, cudaMemcpyHostToDevice);
 
-  cudaMalloc((void **)device_outgoing_edges, sizeof(int) * num_edges);
-  cudaMemcpy(*device_outgoing_edges, g->outgoing_edges, 
+  cudaMalloc((void **)&device_outgoing_edges, sizeof(int) * num_edges);
+  cudaMemcpy(device_outgoing_edges, g->outgoing_edges, 
       sizeof(int) * num_edges, cudaMemcpyHostToDevice);
 
-  cudaMalloc((void **)device_outgoing_starts, sizeof(int) * (num_nodes + 1));
-  cudaMemcpy(*device_outgoing_starts, g->outgoing_starts, 
+  cudaMalloc((void **)&device_outgoing_starts, sizeof(int) * (num_nodes + 1));
+  cudaMemcpy(device_outgoing_starts, g->outgoing_starts, 
       sizeof(int) * (num_nodes + 1), cudaMemcpyHostToDevice);
 
-  cudaMalloc((void **)device_offset, sizeof(int) * (num_vnodes));
-  cudaMemcpy(*device_offset, g->offset, 
+  cudaMalloc((void **)&device_offset, sizeof(int) * (num_vnodes));
+  cudaMemcpy(device_offset, g->offset, 
       sizeof(int) * (num_vnodes), cudaMemcpyHostToDevice);
 
-  cudaMalloc((void **)device_nvir, sizeof(int) * (num_nodes));
-  cudaMemcpy(*device_nvir, g->nvir, 
+  cudaMalloc((void **)&device_nvir, sizeof(int) * (num_nodes));
+  cudaMemcpy(device_nvir, g->nvir, 
       sizeof(int) * (num_nodes), cudaMemcpyHostToDevice);
 
 
-  cudaMalloc((void **)device_d, sizeof(int)*num_nodes);
+  cudaMalloc((void **)&device_d, sizeof(int)*num_nodes);
 
-  cudaMalloc((void **)device_sigma, sizeof(int)*num_nodes);
-  cudaMalloc((void **)device_delta, sizeof(float)*num_nodes);
-  cudaMalloc((void **)device_dist, sizeof(int));
+  cudaMalloc((void **)&device_sigma, sizeof(int)*num_nodes);
+  cudaMalloc((void **)&device_delta, sizeof(float)*num_nodes);
+  cudaMalloc((void **)&device_dist, sizeof(int));
 
-  cudaMalloc((void **)device_bc, sizeof(float)*num_nodes);
-  cudaMemcpy(*device_bc, pre_bc, sizeof(float) * num_nodes, cudaMemcpyHostToDevice);
+  cudaMalloc((void **)&device_bc, sizeof(float) * num_nodes);
+  cudaMemcpy(device_bc, pre_bc, sizeof(float) * num_nodes, cudaMemcpyHostToDevice);
 
-  cudaMalloc((void **)device_cont, sizeof(bool));
+  cudaMalloc((void **)&device_cont, sizeof(bool));
 }
 
-void bc_virtual_stride_clean(int *device_vmap, int *device_outgoing_edges, 
-    int *device_outgoing_starts, int *device_offset, int *device_nvir, 
-    int *device_d, int *device_sigma, float *device_delta, 
-    int *device_dist, float *device_bc, bool *device_cont) {
+void bc_virtual_stride_clean() {
   cudaFree(device_vmap);
   cudaFree(device_outgoing_edges);
   cudaFree(device_outgoing_starts);
@@ -337,69 +330,69 @@ void bc_virtual_stride_clean(int *device_vmap, int *device_outgoing_edges,
   cudaFree(device_cont);
 }
 
-
-int bc_virtual_stride (const graph_virtual *g, float *bc) {
-  int *device_vmap, *device_outgoing_starts, *device_outgoing_edges;
-  int *device_d, *device_sigma, *device_dist, dist;
-  int *device_offset, *device_nvir;
-  float *device_delta, *device_bc;
+/*
+ * compute bc score starting from one source node
+ */
+int bc_virtual_stride_helper(const graph_virtual *g, int src_node) {
   bool cont, *device_cont;
+  int dist = 0;
   int num_nodes = g->num_nodes;
   int num_vnodes = g->num_vnodes;
 
-
-  bc_virtual_stride_setup(g, &device_vmap, &device_outgoing_edges, 
-      &device_outgoing_starts, &device_offset, &device_nvir, &device_d, 
-      &device_sigma, &device_delta, &device_dist, &device_bc, &device_cont, bc);
-
-
-  dim3 blockDim_virtual(THREAD_NUM);
-  dim3 gridDim_virtual(
-      (num_vnodes + blockDim_virtual.x - 1) / blockDim_virtual.x);
-
-  dim3 blockDim(THREAD_NUM);
-  dim3 gridDim((num_nodes + blockDim.x - 1) / blockDim.x);
-
-  for(int node_id = 0; node_id < num_nodes; node_id++){
-    dist = 0;
-    init_virtual_kernel<<<gridDim, blockDim>>>(node_id, device_d, 
-        device_sigma, num_nodes, device_dist);
+  init_virtual_kernel<<<gridDim1, blockDim1>>>(src_node, device_d, 
+      device_sigma, num_nodes, device_dist);
+  cudaDeviceSynchronize();
+  
+  do{
+    cudaMemset(device_cont, false, sizeof(bool));
+    forward_virtual_stride_kernel<<<gridDim_virtual, blockDim_virtual>>>(
+        device_vmap, device_outgoing_starts, device_outgoing_edges, 
+        device_d, device_sigma, device_cont, device_dist, num_vnodes, 
+        device_nvir, device_offset);
     cudaDeviceSynchronize();
-    
-    do{
-      cudaMemset(device_cont, 0, sizeof(bool));
-      forward_virtual_stride_kernel<<<gridDim_virtual, blockDim_virtual>>>(
-          device_vmap, device_outgoing_starts, device_outgoing_edges, 
-          device_d, device_sigma, device_cont, device_dist, num_vnodes, 
-          device_nvir, device_offset);
-      cudaDeviceSynchronize();
-      cudaMemcpy(device_dist, &(++dist), sizeof(int), cudaMemcpyHostToDevice);
-      cudaMemcpy(&cont, device_cont, sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaMemcpy(device_dist, &(++dist), sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(&cont, device_cont, sizeof(bool), cudaMemcpyDeviceToHost);
 
-    }while(cont);
+  } while(cont);
 
+  cudaMemcpy(device_dist, &(--dist), sizeof(int), cudaMemcpyHostToDevice);
+  intermediate_virtual_kernel<<<gridDim1, blockDim1>>>(device_d, 
+      device_sigma, device_delta, device_dist, num_nodes);
+  cudaDeviceSynchronize();
+  while(dist > 1) {
+    backward_virtual_stride_kernel<<<gridDim_virtual, blockDim_virtual>>>(
+        device_vmap, device_outgoing_starts, device_outgoing_edges, device_d, 
+        device_delta, device_dist, num_vnodes, device_nvir, device_offset);
+    cudaDeviceSynchronize();
     cudaMemcpy(device_dist, &(--dist), sizeof(int), cudaMemcpyHostToDevice);
-    intermediate_virtual_kernel<<<gridDim, blockDim>>>(device_d, 
-        device_sigma, device_delta, device_dist, num_nodes);
-    cudaDeviceSynchronize();
-    while(dist > 1) {
-      backward_virtual_stride_kernel<<<gridDim_virtual, blockDim_virtual>>>(
-          device_vmap, device_outgoing_starts, device_outgoing_edges, device_d, 
-          device_delta, device_dist, num_vnodes, device_nvir, device_offset);
-      cudaDeviceSynchronize();
-      cudaMemcpy(device_dist, &(--dist), sizeof(int), cudaMemcpyHostToDevice);
-    }
-    compute_bc_virtual_kernel<<<gridDim, blockDim>>>(node_id, device_d, 
-        device_delta, device_sigma, device_bc, num_nodes);
-    cudaDeviceSynchronize();
+  }
+  compute_bc_virtual_kernel<<<gridDim1, blockDim1>>>(src_node, device_d, 
+      device_delta, device_sigma, device_bc, num_nodes);
+  cudaDeviceSynchronize();
+
+  return 0;
+}
+
+
+int bc_virtual_stride (const graph_virtual *g, float *bc) {
+  int num_nodes = g->num_nodes;
+  int num_vnodes = g->num_vnodes;
+
+  blockDim_virtual = THREAD_NUM;
+  gridDim_virtual = (num_vnodes + blockDim_virtual.x - 1) / blockDim_virtual.x;
+
+  blockDim1 = THREAD_NUM;
+  gridDim1 = (num_nodes + blockDim1.x - 1) / blockDim1.x;
+
+  bc_virtual_stride_setup(g, bc);
+      
+  for(int node_id = 0; node_id < num_nodes; node_id++){
+    bc_virtual_stride_helper(g, node_id);
   }
 
+  cudaMemcpy(bc, device_bc, sizeof(float) * num_nodes, cudaMemcpyDeviceToHost);
 
-  cudaMemcpy(bc, device_bc, sizeof(float)*num_nodes, cudaMemcpyDeviceToHost);
-
-  bc_virtual_stride_clean(device_vmap, device_outgoing_edges, 
-      device_outgoing_starts, device_offset, device_nvir, device_d, 
-      device_sigma, device_delta, device_dist, device_bc, device_cont);
+  bc_virtual_stride_clean();
   
   return 0;
 }

@@ -14,5 +14,6 @@
 int gpu_bc_node_virtual (const graph_virtual *g, float *bc);
 int bc_virtual (const graph_virtual *g, float *bc);
 int bc_virtual_stride (const graph_virtual *g, float *bc);
+int bc_virtual_stride_helper(const graph_virtual *g, int src_node);
 
 #endif

@@ -170,7 +170,7 @@ void test_virtual_stride(const graph_virtual &g_v) {
   float *bc = (float*)calloc(sizeof(float), g_v.num_nodes);
   bc_virtual_stride(&g_v, bc);
   double total_time = CycleTimer::currentSeconds() - start_time;
-  std::cout << "\ttotal time for virtual+stride+deg1: " << total_time << std::endl;
+  std::cout << "\ttotal time for virtual+stride: " << total_time << std::endl;
   print_solution(bc, g_v.num_nodes);
   free(bc);
 }
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
 
     //test_gpu_edge(g);
 
-    test_virtual(g_v);
+    //test_virtual(g_v);
 
     test_virtual_stride(g_v);
 
@@ -235,9 +235,9 @@ int main(int argc, char** argv) {
 
 
     /********************** clean up ***************************/
-    //free(pre_bc);
-    //free(starts);
-    //free(edges);
+    free(pre_bc);
+    free(starts);
+    free(edges);
 
     free(g.outgoing_starts);
     free(g.outgoing_edges);
@@ -247,12 +247,12 @@ int main(int argc, char** argv) {
     free(g_v.voutgoing_starts);
     free(g_v.outgoing_starts);
     free(g_v.outgoing_edges);
-    //free(g_v_deg1.vmap);
-    //free(g_v_deg1.offset);
-    //free(g_v_deg1.nvir);
-    //free(g_v_deg1.voutgoing_starts);
-    //free(g_v_deg1.outgoing_starts);
-    //free(g_v_deg1.outgoing_edges);
+    free(g_v_deg1.vmap);
+    free(g_v_deg1.offset);
+    free(g_v_deg1.nvir);
+    free(g_v_deg1.voutgoing_starts);
+    free(g_v_deg1.outgoing_starts);
+    free(g_v_deg1.outgoing_edges);
 
     return 0;
 }
