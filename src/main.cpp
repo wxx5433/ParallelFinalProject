@@ -57,7 +57,8 @@ void all_preprocess(const graph &g, int *starts, int *edges,
   // preprocess to remove deg1 vertex
   printf("prepro reaches here\n");
   preprocess (starts, edges, tadj, &n, pre_bc, weight, map_for_order, reverse_map_for_order, ofp);
-  nz = starts[n];
+
+  *num_nodes = n;
   *num_edges = starts[n];
   
   // order graph
@@ -70,7 +71,6 @@ void all_preprocess(const graph &g, int *starts, int *edges,
   free(reverse_map_for_order);
   free(weight);
 }
-
 
 void test_cpu_seq(const graph &g) {
   double start_time = CycleTimer::currentSeconds();
@@ -175,9 +175,12 @@ int main(int argc, char** argv) {
 
     printf("Loading graph...\n");
     load_graph(argv[1], &g);
-    printf("Graph stats:\n");
-    printf("  Edges: %d\n", g.num_edges);
-    printf("  Nodes: %d\n", g.num_nodes);
+    print_graph_stats(&g);
+
+    // build virtual graph WITHOUT deg1
+    graph_virtual g_v;
+    build_virtual_graph(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, &g_v);
+    print_graph_virtual_stats(&g_v);
 
     // do preprocess
     float* pre_bc = (float*)malloc(sizeof(float) * g.num_nodes);
@@ -185,15 +188,10 @@ int main(int argc, char** argv) {
     int n = g.num_nodes, nz = g.num_edges;
     all_preprocess(g, starts, edges, &n, &nz, pre_bc);
 
-    // build new graph using result of preprocess
-    graph_virtual g_v;
-    build_virtual_graph(starts, edges, n, nz, &g_v);
-    //build_virtual_graph(g.outgoing_starts, g.outgoing_edges, g.num_nodes, g.num_edges, &g_v);
-    printf("\n");
-    printf("Graph stats:\n");
-    printf("  Edges: %d\n", g_v.num_edges);
-    printf("  Nodes: %d\n", g_v.num_nodes);
-    printf("  VNodes: %d\n", g_v.num_vnodes);
+    // build deg1 virtual graph 
+    graph_virtual g_v_deg1;
+    build_virtual_graph(starts, edges, n, nz, &g_v_deg1);
+    print_graph_virtual_stats(&g_v_deg1);
 
     test_cpu_seq(g);
 
@@ -203,7 +201,9 @@ int main(int argc, char** argv) {
 
     test_gpu_edge(g);
 
+    test_virtual_deg1(g_v_deg1, pre_bc);
 
+    test_virtual_stride_deg1(g_v_deg1, pre_bc);
 
 
 
@@ -214,12 +214,12 @@ int main(int argc, char** argv) {
 
     free(g.outgoing_starts);
     free(g.outgoing_edges);
-    free(g_v.vmap);
-    free(g_v.offset);
-    free(g_v.nvir);
-    free(g_v.voutgoing_starts);
-    free(g_v.outgoing_starts);
-    free(g_v.outgoing_edges);
+    free(g_v_deg1.vmap);
+    free(g_v_deg1.offset);
+    free(g_v_deg1.nvir);
+    free(g_v_deg1.voutgoing_starts);
+    free(g_v_deg1.outgoing_starts);
+    free(g_v_deg1.outgoing_edges);
 
     return 0;
 }

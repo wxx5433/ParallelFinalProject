@@ -142,6 +142,21 @@ void print_graph_virtual(const graph_virtual *graph) {
   }
 }
 
+void print_graph_stats(const graph *g) {
+  printf("\n");
+  printf("Graph stats:\n");
+  printf("  Edges: %d\n", g->num_edges);
+  printf("  Nodes: %d\n", g->num_nodes);
+}
+
+void print_graph_virtual_stats(const graph_virtual *g_v) {
+  printf("\n");
+  printf("Graph stats:\n");
+  printf("  Edges: %d\n", g_v->num_edges);
+  printf("  Nodes: %d\n", g_v->num_nodes);
+  printf("  VNodes: %d\n", g_v->num_vnodes);
+}
+
 void read_graph_file(std::ifstream& file, int* scratch) {
   std::string buffer;
   int idx = 0;
