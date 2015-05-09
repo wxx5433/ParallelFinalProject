@@ -143,6 +143,16 @@ void test_gpu_edge_deg1(int *starts, int *edges, int n, int nz, int num_nodes, f
   free(list);
 }
 
+void test_virtual(const graph_virtual &g_v) {
+  double start_time = CycleTimer::currentSeconds();
+  float *bc = (float*)malloc(sizeof(float) * g_v.num_nodes);
+  bc_virtual(&g_v, bc);
+  double total_time = CycleTimer::currentSeconds() - start_time;
+  std::cout << "\ttotal time for virtual: " << total_time << std::endl;
+  print_solution(bc, g_v.num_nodes);
+  free(bc);
+}
+
 void test_virtual_deg1(const graph_virtual &g_v, const float *pre_bc) {
   double start_time = CycleTimer::currentSeconds();
   float *bc = (float*)malloc(sizeof(float) * g_v.num_nodes);
@@ -150,6 +160,17 @@ void test_virtual_deg1(const graph_virtual &g_v, const float *pre_bc) {
   bc_virtual(&g_v, bc);
   double total_time = CycleTimer::currentSeconds() - start_time;
   std::cout << "\ttotal time for virtual+deg1: " << total_time << std::endl;
+  print_solution(bc, g_v.num_nodes);
+  free(bc);
+}
+
+void test_virtual_stride(const graph_virtual &g_v) {
+  // virual stride + deg1
+  double start_time = CycleTimer::currentSeconds();
+  float *bc = (float*)malloc(sizeof(float) * g_v.num_nodes);
+  bc_virtual_stride(&g_v, bc);
+  double total_time = CycleTimer::currentSeconds() - start_time;
+  std::cout << "\ttotal time for virtual+stride+deg1: " << total_time << std::endl;
   print_solution(bc, g_v.num_nodes);
   free(bc);
 }
@@ -200,6 +221,10 @@ int main(int argc, char** argv) {
     test_gpu_node(g);
 
     test_gpu_edge(g);
+
+    test_virtual(g_v_deg1);
+
+    test_virtual_stride(g_v_deg1);
 
     test_virtual_deg1(g_v_deg1, pre_bc);
 

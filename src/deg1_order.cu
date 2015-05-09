@@ -101,6 +101,7 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
     dim3 threads(threads_per_block);
     
     set_degree_kernel<<<grid, threads>>>(d_xadj, d_degrees, n);
+    cudaDeviceSynchronize();
     //cudaMemcpy(&h_degrees, d_degrees, sizeof(int) * n, cudaMemcpyDeviceToHost);
     //for (int i = 0; i < n; ++i) {
         //printf("%d\n", h_degrees[i]);
@@ -119,6 +120,7 @@ int preprocess(int *xadj, int* adj, int* tadj, int *np, float* bc, int* weight, 
     
     //reconstruct the graph
     orderEdges_kernel<<<grid,threads>>>(d_xadj, d_adj, n);
+    cudaDeviceSynchronize();
     
     checkCudaErrors(cudaMemcpy(bc, d_bc, sizeof(float) * n, cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaMemcpy(weight, d_weight, sizeof(int) * n, cudaMemcpyDeviceToHost));
